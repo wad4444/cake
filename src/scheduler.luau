@@ -4,6 +4,7 @@ local util = require("./util")
 local errors = require("./errors")
 local logging = require("./logging")
 local phase = require("./phase")
+local globals = require("./globals")
 
 local function init<T, K...>(self: types.SchedulerInternal<T, K...>, ...: K...): ()
 	logging.set_category(errors.failed_to_init(self))
@@ -197,9 +198,17 @@ function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: typ
 	logging.end_category()
 end
 
-function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase: types.Phase)
-	logging.set_category(errors.failed_to_run_phase(self, phase))
-	local is_internal_default_phase = phase == self.internal_default_phase
+function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run: types.Phase)
+	local is_internal_default_phase = phase_to_run == self.internal_default_phase
+	if globals.dev_mode and not phase.is_phase(phase_to_run) then
+		logging.set_category(errors.failed_to_run_phase(self, phase_to_run))
+
+		logging.report_error(errors.invalid_phase(phase_to_run))
+		logging.flush()
+
+		logging.end_category()
+		return
+	end
 
 	local errors = logging.collect(function()
 		for system in self.internal_system_state do
@@ -209,18 +218,17 @@ function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase: types
 		end
 	end)
 
-	if #errors > 0 then
-		logging.flush()
-		return
-	end
-
-	logging.end_category()
+	logging.flush(errors)
 end
 
 function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_phase: types.Phase)
-	if type(new_phase) ~= "table" or phase.symbol ~= new_phase.symbol then
+	if globals.dev_mode and not phase.is_phase(new_phase) then
+		logging.set_category(errors.failed_to_set_default_phase(self, new_phase))
+
 		logging.report_error(errors.invalid_phase(new_phase))
 		logging.flush()
+
+		logging.end_category()
 		return
 	end
 
@@ -241,14 +249,24 @@ local template = {
 	run_phase = run_phase,
 }
 
+local meta = {
+	__tostring = function(self)
+		return `Scheduler({self.internal_default_phase})`
+	end,
+}
+
 local function create_init<T...>(...: T...)
 	local scheduler = table.clone(template)
 	scheduler.internal_init_arguments = { ... }
+	setmetatable(scheduler, meta)
 
 	return scheduler :: types.Scheduler<T...>
 end
 
 local function create<T...>()
+	local scheduler = table.clone(template)
+	setmetatable(scheduler, meta)
+
 	return template :: types.Scheduler<T...>
 end
 

@@ -9,36 +9,41 @@ local categories: { string } = {}
 local errors: { types.ErrorObject } = {}
 local collect_stack: { { types.ErrorObject } } = {}
 
-local function report_error(error: string)
-	local error_object: types.ErrorObject = {
+local function create_error(error: string): types.ErrorObject
+	return {
 		error = error,
 		context = categories[#categories],
 	}
+end
+
+local function report_error(error: string)
+	local error_object = create_error(error)
 
 	if #collect_stack > 0 then
 		table.insert(collect_stack[#collect_stack], error_object)
+	else
+		table.insert(errors, error_object)
 	end
-
-	table.insert(errors, error_object)
 end
 
-local function flush()
-	if #errors == 0 then
+local function flush(errors_to_flush: { types.ErrorObject }?)
+	errors_to_flush = errors_to_flush or errors
+	if #errors_to_flush == 0 then
 		return
 	end
 
 	local error_str = error_block_prefix
-	for index, error in errors do
+	for index, error in errors_to_flush do
 		local current_error_str = if error.context then ` {index}. {error.context}:\n` else ``
 		current_error_str ..= `\t{string.gsub(error.error, "\n", `\n\t`)}`
 
 		error_str ..= current_error_str
-		if index ~= #errors then
+		if index ~= #errors_to_flush then
 			error_str ..= "\n"
 		end
 	end
 
-	table.clear(errors)
+	table.clear(errors_to_flush)
 	error_str ..= error_block_trivia
 
 	warn(error_str)
@@ -111,6 +116,7 @@ return {
 	report_error = report_error,
 	flush = flush,
 	try_run = try_run,
+	create_error = create_error,
 	try_run_pack_args = try_run_pack_args,
 	collect = collect,
 }

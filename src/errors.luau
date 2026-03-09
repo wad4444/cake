@@ -11,6 +11,9 @@ local errors = {
 	failed_to_run_phase = function(scheduler: unknown, phase: unknown)
 		return `Failed to run phase {phase} in {scheduler}`
 	end,
+	failed_to_set_default_phase = function(scheduler: unknown, phase: unknown)
+		return `Failed to set default phase {phase} in {scheduler}`
+	end,
 	invalid_phase = function(phase: unknown)
 		return `{phase} is not a valid phase object. Traceback:{debug.traceback("", 3)}`
 	end,

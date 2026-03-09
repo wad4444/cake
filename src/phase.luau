@@ -17,7 +17,11 @@ function create_phase(name: string): types.Phase
 	return table.freeze(phase_table)
 end
 
+function is_phase(phase: unknown): boolean
+	return type(phase) == "table" and (phase :: any).symbol == symbol
+end
+
 return {
 	create_phase = create_phase,
-	symbol = symbol,
+	is_phase = is_phase,
 }
