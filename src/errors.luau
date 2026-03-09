@@ -38,8 +38,14 @@ local errors = {
 	no_yielding_allowed = `No yielding allowed in the current environment`,
 	already_initialized = `Tried to initialize scheduler twice`,
 	not_initialized = `Scheduler isn't initialized`,
+	ignore_error = function(seconds: number)
+		return `Following error will be ignored for the next {seconds} seconds...`
+	end,
+	ignored_errors = function(seconds: number)
+		return `Following errors will be ignored for the next {seconds} second{if seconds ~= 1 then "s" else ""}...`
+	end,
 	default_error = function(err: unknown)
-		return `An error has occured. Error: {err}`
+		return `An error has occured. Error:\n{err}`
 	end,
 }
 

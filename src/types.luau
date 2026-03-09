@@ -1,8 +1,11 @@
 export type Callback = (...any) -> ...any
-
-export type ErrorObject = { read error: string, read context: string? }
-
 export type Cleanuppable = Callback | Instance | thread | RBXScriptConnection
+
+export type ErrorNode = {
+	read errors: { string },
+	category: string?,
+	children: { ErrorNode },
+}
 
 export type InternalSystemState = {
 	read context: SystemContext,
@@ -14,11 +17,13 @@ export type InternalSystemState = {
 export type Transformation<T..., V...> = (T...) -> V...
 
 export type SchedulerInternal<T, K...> = {
-	internal_default_phase: Phase,
-	internal_init_arguments: { unknown }?,
+	read internal_values: {
+		default_phase: Phase,
+		init_arguments: { unknown }?,
+	},
 
 	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
-	read internal_error_cache: { ErrorObject },
+	read internal_error_cache: { [string]: number },
 
 	read init: (SchedulerInternal<T, K...>, K...) -> (),
 	read add_foreign_system: <V...>(
@@ -59,7 +64,7 @@ export type SystemContext = {
 	delta_time: number,
 	read cleanup: (Cleanuppable) -> () -> (),
 }
-export type SystemReturns = nil | () -> ()
+export type SystemReturns = nil | () -> ...any
 export type SystemFunction<T...> = (T...) -> SystemReturns
 
 export type SystemTable<T> = {

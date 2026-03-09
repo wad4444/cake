@@ -10,7 +10,7 @@ function create_phase(name: string): types.Phase
 	}
 	setmetatable(phase_table, {
 		__tostring = function(self)
-			return `Phase ({self.name})`
+			return `Phase({self.name})`
 		end,
 	})
 

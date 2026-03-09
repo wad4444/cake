@@ -1,56 +1,97 @@
 local types = require("./types")
+
 local error_list = require("./errors")
+local nodes = require("./error-nodes")
 local globals = require("./globals")
 
-local error_block_prefix = "\n/* Cake has caught the following errors in your code: */\n"
-local error_block_trivia = "\n/* End of cake error block */\n"
+local error_block_header = `[CAKE ERROR BLOCK]`
+local error_block_footer = `[END OF BLOCK]`
+local error_block_trivia = `[BLOCK TRIVIA]`
 
-local categories: { string } = {}
-local errors: { types.ErrorObject } = {}
-local collect_stack: { { types.ErrorObject } } = {}
+local category_stack: { string } = {}
 
-local function create_error(error: string): types.ErrorObject
-	return {
-		error = error,
-		context = categories[#categories],
-	}
-end
+local node_stack = nodes.node_stack
+local append_node_stack = nodes.append_node_stack
+local traverse = nodes.traverse
+local collect = nodes.collect
 
 local function report_error(error: string)
-	local error_object = create_error(error)
-
-	if #collect_stack > 0 then
-		table.insert(collect_stack[#collect_stack], error_object)
-	else
-		table.insert(errors, error_object)
-	end
+	local last_node = append_node_stack(node_stack.stack[node_stack.index], category_stack)
+	table.insert(last_node.errors, error)
 end
 
-local function flush(errors_to_flush: { types.ErrorObject }?)
-	errors_to_flush = errors_to_flush or errors
-	if #errors_to_flush == 0 then
+local function ast_to_string(node: types.ErrorNode, trivia_text: string?): string
+	local error_str_buf = ""
+	local longest_sym_count = 10
+
+	traverse(node, function(node, depth)
+		local tab_offset = string.rep("\t", depth - 1)
+		local content_tab_offset = string.rep("\t", depth + if node.category then 0 else -1)
+
+		local current_buf = ""
+		if node.category then
+			local category_header = `{tab_offset}* {node.category}:\n`
+			local header_length = #string.gsub(category_header, "\t", "    ")
+
+			longest_sym_count = math.max(longest_sym_count, header_length)
+			current_buf = category_header
+		end
+
+		for _, error in node.errors do
+			current_buf ..= `{content_tab_offset}{string.gsub(error, "\n", `\n{content_tab_offset}`)}\n`
+		end
+
+		error_str_buf ..= current_buf
+	end)
+
+	local base_count = math.round(longest_sym_count * 0.65) - 8 -- 8 is basically "/*  " symbols * 2 , 0.65 is to account for slashes not being as fat on avg
+	local fsc_diff = math.round(math.abs(#error_block_header - #error_block_footer) / 2)
+	local tsc_diff = math.round(math.abs(#error_block_header - #error_block_trivia) / 2)
+
+	local hsc = base_count - #error_block_header -- header slash count
+	local fsc = base_count - #error_block_footer - fsc_diff -- footer slash count
+	local tsc = base_count - #error_block_trivia - tsc_diff -- trivia slash count
+
+	local header = `\n/* {string.rep("-", hsc)} {error_block_header} {string.rep("-", hsc)} */\n`
+	local footer = `/* {string.rep("-", fsc)} {error_block_footer} {string.rep("-", fsc)} */\n`
+	local trivia = `/* {string.rep("-", tsc)} {error_block_trivia} {string.rep("-", tsc)} */\n`
+
+	error_str_buf = header .. error_str_buf
+	if trivia_text then
+		error_str_buf ..= trivia .. trivia_text .. "\n"
+	end
+	error_str_buf ..= footer
+
+	return error_str_buf
+end
+
+local function flush_node(node: types.ErrorNode, trivia_text: string?)
+	if #node.children == 0 and #node.errors == 0 then
 		return
 	end
 
-	local error_str = error_block_prefix
-	for index, error in errors_to_flush do
-		local current_error_str = if error.context then ` {index}. {error.context}:\n` else ``
-		current_error_str ..= `\t{string.gsub(error.error, "\n", `\n\t`)}`
+	warn(ast_to_string(node, trivia_text))
 
-		error_str ..= current_error_str
-		if index ~= #errors_to_flush then
-			error_str ..= "\n"
-		end
+	table.clear(node.children)
+	table.clear(node.errors)
+	node.category = nil
+end
+
+local function flush(trivia_text: string?)
+	if node_stack.index ~= 1 then
+		return
 	end
 
-	table.clear(errors_to_flush)
-	error_str ..= error_block_trivia
-
-	warn(error_str)
+	flush_node(node_stack.stack[1], trivia_text)
+	table.clear(category_stack)
 end
 
 local function format_err_std(err: unknown, source: string, line: number, name: string?)
-	return `{err}.\nFunction defined at: {source}:{line}{if name then `\n function {name}` else ""}`
+	if name ~= "" then
+		return `{err}.\nFunction {name} defined at: {source}:{line}`
+	end
+
+	return `{err}.\nAnonymous function defined at: {source}:{line}`
 end
 
 local function run_error_handling_no_yield<T..., V...>(fn: (T...) -> V..., ...: T...): (boolean, V...)
@@ -66,7 +107,7 @@ local function run_error_handling_no_yield<T..., V...>(fn: (T...) -> V..., ...: 
 
 	local success = table.remove(result, 1)
 	if not success then
-		local error = table.remove(result, 2)
+		local error = table.remove(result, 1)
 		local source, line, name = debug.info(thread, 1, "sln")
 		report_error(format_err_std(error_list.default_error(error), source, line, name))
 		return false, nil :: any
@@ -93,21 +134,11 @@ local function try_run_pack_args<T...>(fn: (T...) -> ...any, ...: T...): (boolea
 end
 
 local function set_category(category: string)
-	table.insert(categories, category)
+	table.insert(category_stack, category)
 end
 
 local function end_category()
-	table.remove(categories)
-end
-
-local function collect(fn: () -> ()): { types.ErrorObject }
-	local errors: { types.ErrorObject } = {}
-	table.insert(collect_stack, errors)
-
-	try_run(fn)
-
-	table.remove(collect_stack)
-	return errors
+	table.remove(category_stack)
 end
 
 return {
@@ -115,8 +146,9 @@ return {
 	end_category = end_category,
 	report_error = report_error,
 	flush = flush,
+	flush_node = flush_node,
 	try_run = try_run,
-	create_error = create_error,
 	try_run_pack_args = try_run_pack_args,
 	collect = collect,
+	category_stack = category_stack,
 }

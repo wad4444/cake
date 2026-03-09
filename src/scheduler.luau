@@ -3,27 +3,28 @@ local phase_std = require("./phase-std")
 local util = require("./util")
 local errors = require("./errors")
 local logging = require("./logging")
+local nodes = require("./error-nodes")
 local phase = require("./phase")
 local globals = require("./globals")
 
 local function init<T, K...>(self: types.SchedulerInternal<T, K...>, ...: K...): ()
 	logging.set_category(errors.failed_to_init(self))
 
-	if self.internal_init_arguments then
+	if self.internal_values.init_arguments then
 		logging.report_error(errors.already_initialized)
 		logging.flush()
 		return
 	end
 
 	logging.end_category()
-	self.internal_init_arguments = { ... }
+	self.internal_values.init_arguments = { ... }
 
 	self:run_phase(phase_std.on_init)
 end
 
 local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<T>): () -> ()
 	logging.set_category(errors.failed_to_add_system(system))
-	if not self.internal_init_arguments then
+	if not self.internal_values.init_arguments then
 		logging.report_error(errors.not_initialized)
 		logging.flush()
 		return util.noop
@@ -37,7 +38,7 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	}
 
 	local cached_runner = function()
-		return (system.system :: any)(table.unpack(self.internal_init_arguments), context)
+		return (system.system :: any)(table.unpack(self.internal_values.init_arguments), context)
 	end
 
 	logging.set_category(errors.failed_to_cache(system))
@@ -77,7 +78,7 @@ local function add_foreign_system<T, K..., V...>(
 	transformation: types.Transformation<K..., V...>
 ): () -> ()
 	logging.set_category(errors.failed_to_add_system(system))
-	if not self.internal_init_arguments then
+	if not self.internal_values.init_arguments then
 		logging.report_error(errors.not_initialized)
 		logging.flush()
 		return util.noop
@@ -93,7 +94,7 @@ local function add_foreign_system<T, K..., V...>(
 	logging.set_category(errors.failed_to_transform(system))
 
 	local trasform_success, arguments =
-		logging.try_run_pack_args<<K...>>(transformation, table.unpack(self.internal_init_arguments), context)
+		logging.try_run_pack_args<<K...>>(transformation, table.unpack(self.internal_values.init_arguments), context)
 
 	if not trasform_success then
 		logging.flush()
@@ -142,20 +143,20 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 
 	logging.set_category(errors.failed_to_deinit(self))
 
-	if not self.internal_init_arguments then
+	if not self.internal_values.init_arguments then
 		logging.report_error(errors.not_initialized)
 		logging.flush()
 		return
 	end
 
-	self.internal_init_arguments = nil
-	logging.collect(function()
+	self.internal_values.init_arguments = nil
+	local error_node = logging.collect(function()
 		for system in self.internal_system_state do
 			self:remove_system(system)
 		end
 	end)
 
-	logging.flush()
+	logging.flush_node(error_node)
 	logging.end_category()
 end
 
@@ -183,23 +184,50 @@ function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: typ
 	if not system_state then
 		logging.report_error(errors.system_not_active(system))
 		logging.flush()
+		logging.end_category()
 		return
 	end
 
 	system_state.context.delta_time = os.clock() - system_state.last_run
 	system_state.last_run = os.clock()
 
-	local success = logging.try_run(system_state.cached_runner)
+	local success
+	local error_node = logging.collect(function()
+		success = logging.try_run(system_state.cached_runner)
+	end)
 	if not success then
-		logging.flush()
+		transform_system_error_node(self, error_node)
+		logging.flush_node(error_node, errors.ignore_error(globals.default_error_ignore_time))
+
+		logging.end_category()
+		logging.end_category()
 		return
 	end
 
 	logging.end_category()
 end
 
+function transform_system_error_node<T, K...>(self: types.SchedulerInternal<T, K...>, error_node: types.ErrorNode)
+	nodes.traverse(error_node, function(node, depth)
+		if #node.errors == 0 then
+			return
+		end
+		for i = 1, #node.errors do
+			local error = node.errors[i]
+			local last_seen = self.internal_error_cache[error]
+			if last_seen and os.clock() - last_seen < globals.default_error_ignore_time then
+				table.remove(node.errors, table.find(node.errors, error))
+				continue
+			end
+
+			self.internal_error_cache[node.errors[i]] = os.clock()
+		end
+	end)
+	nodes.strip_empty(error_node)
+end
+
 function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run: types.Phase)
-	local is_internal_default_phase = phase_to_run == self.internal_default_phase
+	local is_default_phase = phase_to_run == self.internal_values.default_phase
 	if globals.dev_mode and not phase.is_phase(phase_to_run) then
 		logging.set_category(errors.failed_to_run_phase(self, phase_to_run))
 
@@ -210,15 +238,18 @@ function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run
 		return
 	end
 
-	local errors = logging.collect(function()
+	local error_node = logging.collect(function()
 		for system in self.internal_system_state do
-			if (is_internal_default_phase and system.phase == nil) or system.phase == phase then
+			if (is_default_phase and system.phase == nil) or system.phase == phase_to_run then
 				self:run_system(system)
 			end
 		end
 	end)
 
-	logging.flush(errors)
+	if nodes.is_empty(error_node) then
+		return
+	end
+	logging.flush_node(error_node, errors.ignored_errors(globals.default_error_ignore_time))
 end
 
 function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_phase: types.Phase)
@@ -232,11 +263,13 @@ function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_
 		return
 	end
 
-	self.internal_default_phase = new_phase
+	self.internal_values.default_phase = new_phase
 end
 
 local template = {
-	internal_default_phase = phase_std.on_init,
+	internal_values = {
+		default_phase = phase_std.on_init,
+	},
 	internal_system_state = {},
 	internal_error_cache = {},
 	add_system = add_system,
@@ -251,23 +284,23 @@ local template = {
 
 local meta = {
 	__tostring = function(self)
-		return `Scheduler({self.internal_default_phase})`
+		return `Scheduler({self.internal_values.default_phase})`
 	end,
 }
 
 local function create_init<T...>(...: T...)
 	local scheduler = table.clone(template)
-	scheduler.internal_init_arguments = { ... }
+	scheduler.internal_values.init_arguments = { ... }
 	setmetatable(scheduler, meta)
 
-	return scheduler :: types.Scheduler<T...>
+	return table.freeze(scheduler) :: types.Scheduler<T...>
 end
 
 local function create<T...>()
 	local scheduler = table.clone(template)
 	setmetatable(scheduler, meta)
 
-	return template :: types.Scheduler<T...>
+	return scheduler :: types.Scheduler<T...>
 end
 
 return {
