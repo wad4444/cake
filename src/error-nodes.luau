@@ -1,18 +1,19 @@
 local types = require("./types")
 
-local empty_node: types.ErrorNode = {
-	errors = {},
-	category = nil,
-	children = {},
-}
-
 local node_stack = {
 	stack = table.create(10) :: { types.ErrorNode },
 	index = 1,
 }
 
 for i = 1, 10 do
-	table.insert(node_stack.stack, table.clone(empty_node))
+	table.insert(
+		node_stack.stack,
+		{
+			errors = {},
+			category = nil,
+			children = {},
+		} :: types.ErrorNode
+	)
 end
 
 local function append_node_stack(node: types.ErrorNode, category_stack: { string })
@@ -97,7 +98,11 @@ local function collect(fn: () -> ())
 
 	local node = node_stack.stack[node_stack.index]
 	if not node then
-		node = table.clone(empty_node)
+		node = {
+			errors = {},
+			category = nil,
+			children = {},
+		} :: types.ErrorNode
 		table.insert(node_stack.stack, node)
 	end
 
