@@ -38,13 +38,19 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 		end
 
 		for _, error in node.errors do
-			current_buf ..= `{content_tab_offset}{string.gsub(error, "\n", `\n{content_tab_offset}`)}\n`
+			local formatted_error = `{content_tab_offset}{string.gsub(error, "\n", `\n{content_tab_offset}`)}\n`
+			local tabs_to_spaces = string.gsub(formatted_error, "\t", "    ")
+			for _, part in string.split(tabs_to_spaces, "\n") do
+				longest_sym_count = math.max(longest_sym_count, #part)
+			end
+
+			current_buf ..= formatted_error
 		end
 
 		error_str_buf ..= current_buf
 	end)
 
-	local base_count = math.round(longest_sym_count * 0.65) - 8 -- 8 is basically "/*  " symbols * 2 , 0.65 is to account for slashes not being as fat on avg
+	local base_count = math.round(longest_sym_count * 0.7) - 8 -- 8 is basically "/*  " symbols * 2 , 0.65 is to account for slashes not being as fat on avg
 	local fsc_diff = math.round(math.abs(#error_block_header - #error_block_footer) / 2)
 	local tsc_diff = math.round(math.abs(#error_block_header - #error_block_trivia) / 2)
 
