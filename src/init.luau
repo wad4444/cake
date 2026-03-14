@@ -12,7 +12,7 @@ export type SystemFunction<T...> = types.SystemFunction<T...>
 export type Scheduler<T...> = types.Scheduler<T...>
 
 return {
-	system = system,
+	system = system.create_system,
 	scheduler = scheduler.create,
 	scheduler_init = scheduler.create_init,
 	phase = phase.create_phase,

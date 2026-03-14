@@ -1,20 +1,11 @@
 local cake = require(game.ReplicatedStorage.cake)
 
-function system_fn(n: number, ctx: cake.SystemContext)
-    error("ff")
-    return function()
-        error(`{math.random(1, 3)}`)
-    end
+function sys_fn(context: cake.SystemContext)
+    print(context.delta_time)
 end
 
+local scheduler = cake.scheduler()
+scheduler:init()
 
-local phase = cake.phase("TSETT")
-
-local system = cake.system(system_fn, "Test", phase)
-local sys2 = cake.system(system_fn, "Test2", phase)
-
-local scheduler = cake.scheduler<<(number)>>()
-scheduler:init(1)
-
-scheduler:add_system(system)
-
+local sys = cake.system(sys_fn, "test")
+scheduler:add_system(sys)

@@ -1,6 +1,7 @@
 local types = require("./types")
 local logging = require("./logging")
-local errors = require("./errors")
+local errors = require("./messages")
+local try = require("./try")
 
 local function noop() end
 
@@ -12,10 +13,47 @@ local function cleanup_single(object: types.Cleanuppable)
 	elseif typeof(object) == "RBXScriptConnection" then
 		object:Disconnect()
 	elseif typeof(object) == "function" then
-		object()
+		try.try_run(object)
 	end
 
-	logging.report_error(errors.invalid_cleanup_object(typeof(object)))
+	logging.report_error(errors.errors.invalid_cleanup_object(typeof(object)))
+	return
+end
+
+local function combine_into_tuple(array: { any }, value: any)
+	local a, b, c, d, e, f, g, h, i, j = table.unpack(array)
+	if not a then
+		return value
+	end
+	if not b then
+		return value, a
+	end
+	if not c then
+		return value, a, b
+	end
+	if not d then
+		return value, a, b, c
+	end
+	if not e then
+		return value, a, b, c, d
+	end
+	if not f then
+		return value, a, b, c, d, e
+	end
+	if not g then
+		return value, a, b, c, d, e, f
+	end
+	if not h then
+		return value, a, b, c, d, e, f, g
+	end
+	if not i then
+		return value, a, b, c, d, e, f, g, h
+	end
+	if not j then
+		return value, a, b, c, d, e, f, g, h, i
+	end
+
+	error(errors.errors.combine_failed(array)) -- hack: will get caught by xpcall error handler
 	return
 end
 
@@ -43,4 +81,5 @@ return {
 	noop = noop,
 	cleanup_single = cleanup_single,
 	build_cleanup_function = build_cleanup_function,
+	combine_into_tuple = combine_into_tuple,
 }

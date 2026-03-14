@@ -1,32 +1,54 @@
 local types = require("./types")
 local phase_std = require("./phase-std")
 local util = require("./util")
-local errors = require("./errors")
+local messages = require("./messages")
 local logging = require("./logging")
 local nodes = require("./error-nodes")
 local phase = require("./phase")
 local globals = require("./globals")
+local system = require("./system")
+local try = require("./try")
 
 local function init<T, K...>(self: types.SchedulerInternal<T, K...>, ...: K...): ()
-	logging.set_category(errors.failed_to_init(self))
+	local top_index = logging.set_category(messages.categories.failed_to_init(self))
 
 	if self.internal_values.init_arguments then
-		logging.report_error(errors.already_initialized)
+		logging.report_with_traceback(messages.errors.already_initialized)
+		logging.end_after_inclusive(top_index)
 		logging.flush()
 		return
 	end
 
-	logging.end_category()
+	logging.end_after_inclusive(top_index)
 	self.internal_values.init_arguments = { ... }
 
 	self:run_phase(phase_std.on_init)
 end
 
-local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<T>): () -> ()
-	logging.set_category(errors.failed_to_add_system(system))
+local function validate_scheduler_initialized<T, K...>(self: types.SchedulerInternal<T, K...>)
 	if not self.internal_values.init_arguments then
-		logging.report_error(errors.not_initialized)
+		logging.report_with_traceback(messages.errors.not_initialized)
 		logging.flush()
+		return false
+	end
+
+	return true
+end
+
+local function validate_system<T, K...>(self: types.SchedulerInternal<T, K...>, to_add: types.SystemTable<T>)
+	if globals.dev_mode and not system.is_system(to_add) then
+		logging.report_with_traceback(messages.errors.invalid_system(to_add))
+		logging.flush()
+		return false
+	end
+
+	return true
+end
+
+local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<T>): () -> ()
+	local top_index = logging.set_category(messages.categories.failed_to_add_system(system))
+	if not validate_scheduler_initialized(self) or not validate_system(self, system) then
+		logging.end_after_inclusive(top_index)
 		return util.noop
 	end
 
@@ -38,15 +60,16 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	}
 
 	local cached_runner = function()
-		return (system.system :: any)(table.unpack(self.internal_values.init_arguments), context)
+		return (system.system :: any)(util.combine_into_tuple(self.internal_values.init_arguments :: any, context))
 	end
 
-	logging.set_category(errors.failed_to_cache(system))
-	local success, result = logging.try_run(cached_runner)
+	logging.set_category(messages.categories.failed_to_cache(system))
+	local success, result = try.try_run(cached_runner)
 
 	if not success then
-		logging.flush()
 		util.cleanup(to_cleanup)
+		logging.end_after_inclusive(top_index)
+		logging.flush()
 
 		return util.noop
 	end
@@ -65,7 +88,7 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	}
 
 	self.internal_system_state[system] = state
-	logging.end_category()
+	logging.end_after_inclusive(top_index)
 
 	return function()
 		self:remove_system(system)
@@ -77,10 +100,9 @@ local function add_foreign_system<T, K..., V...>(
 	system: types.SystemTable<types.SystemFunction<V...>>,
 	transformation: types.Transformation<K..., V...>
 ): () -> ()
-	logging.set_category(errors.failed_to_add_system(system))
-	if not self.internal_values.init_arguments then
-		logging.report_error(errors.not_initialized)
-		logging.flush()
+	local top_index = logging.set_category(messages.categories.failed_to_add_system(system))
+	if not validate_scheduler_initialized(self) or not validate_system(self, system) then
+		logging.end_after_inclusive(top_index)
 		return util.noop
 	end
 
@@ -91,12 +113,14 @@ local function add_foreign_system<T, K..., V...>(
 		cleanup = util.build_cleanup_function(to_cleanup),
 	}
 
-	logging.set_category(errors.failed_to_transform(system))
+	logging.set_category(messages.categories.failed_to_transform(system))
 
 	local trasform_success, arguments =
-		logging.try_run_pack_args<<K...>>(transformation, table.unpack(self.internal_values.init_arguments), context)
+		try.try_run_pack_args<<K...>>(transformation, table.unpack(self.internal_values.init_arguments :: any), context)
 
 	if not trasform_success then
+		util.cleanup(to_cleanup)
+		logging.end_after_inclusive(top_index)
 		logging.flush()
 		return util.noop
 	end
@@ -107,12 +131,13 @@ local function add_foreign_system<T, K..., V...>(
 		return (system.system :: any)(table.unpack(arguments))
 	end
 
-	logging.set_category(errors.failed_to_cache(system))
-	local success, result = logging.try_run(cached_runner)
+	logging.set_category(messages.categories.failed_to_cache(system))
+	local success, result = try.try_run(cached_runner)
 
 	if not success then
-		logging.flush()
 		util.cleanup(to_cleanup)
+		logging.end_after_inclusive(top_index)
+		logging.flush()
 
 		return util.noop
 	end
@@ -131,7 +156,7 @@ local function add_foreign_system<T, K..., V...>(
 	}
 
 	self.internal_system_state[system] = state
-	logging.end_category()
+	logging.end_after_inclusive(top_index)
 
 	return function()
 		self:remove_system(system)
@@ -141,10 +166,11 @@ end
 local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	self:run_phase(phase_std.on_deinit)
 
-	logging.set_category(errors.failed_to_deinit(self))
+	local top_index = logging.set_category(messages.categories.failed_to_deinit(self))
 
 	if not self.internal_values.init_arguments then
-		logging.report_error(errors.not_initialized)
+		logging.report_error(messages.errors.not_initialized)
+		logging.end_after_inclusive(top_index)
 		logging.flush()
 		return
 	end
@@ -156,16 +182,17 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 		end
 	end)
 
+	logging.end_after_inclusive(top_index)
 	logging.flush_node(error_node)
-	logging.end_category()
 end
 
 local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
-	logging.set_category(errors.failed_to_remove_system(self, system))
+	local top_index = logging.set_category(messages.categories.failed_to_remove_system(self, system))
 
 	local system_state = self.internal_system_state[system]
 	if not system_state then
-		logging.report_error(errors.system_not_active(system))
+		logging.report_error(messages.errors.system_not_active(system))
+		logging.end_after_inclusive(top_index)
 		logging.flush()
 		return
 	end
@@ -173,18 +200,18 @@ local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, sy
 	util.cleanup(system_state.to_cleanup)
 	self.internal_system_state[system] = nil
 
-	logging.end_category()
+	logging.end_after_inclusive(top_index)
 	logging.flush()
 end
 
 function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
-	logging.set_category(errors.failed_to_run_system(self, system))
+	local top_index = logging.set_category(messages.categories.failed_to_run_system(self, system))
 
 	local system_state = self.internal_system_state[system]
 	if not system_state then
-		logging.report_error(errors.system_not_active(system))
+		logging.report_error(messages.errors.system_not_active(system))
+		logging.end_after_inclusive(top_index)
 		logging.flush()
-		logging.end_category()
 		return
 	end
 
@@ -193,48 +220,56 @@ function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: typ
 
 	local success
 	local error_node = logging.collect(function()
-		success = logging.try_run(system_state.cached_runner)
+		success = try.try_run(system_state.cached_runner)
 	end)
 	if not success then
+		logging.end_after_inclusive(top_index)
 		transform_system_error_node(self, error_node)
-		logging.flush_node(error_node, errors.ignore_error(globals.default_error_ignore_time))
+		logging.flush_node(error_node, messages.errors.ignore_error(globals.default_error_ignore_time))
 
-		logging.end_category()
-		logging.end_category()
 		return
 	end
 
-	logging.end_category()
+	logging.end_after_inclusive(top_index)
+end
+
+function get_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>): types.Phase
+	return self.internal_values.default_phase
 end
 
 function transform_system_error_node<T, K...>(self: types.SchedulerInternal<T, K...>, error_node: types.ErrorNode)
-	nodes.traverse(error_node, function(node, depth)
+	for node in nodes.iterate(error_node) do
 		if #node.errors == 0 then
-			return
+			continue
 		end
-		for i = 1, #node.errors do
-			local error = node.errors[i]
+
+		local errors_to_remove = {}
+		for _, error in node.errors do
 			local last_seen = self.internal_error_cache[error]
 			if last_seen and os.clock() - last_seen < globals.default_error_ignore_time then
-				table.remove(node.errors, table.find(node.errors, error))
+				table.insert(errors_to_remove, error)
 				continue
 			end
 
-			self.internal_error_cache[node.errors[i]] = os.clock()
+			self.internal_error_cache[error] = os.clock()
 		end
-	end)
+
+		for _, error in errors_to_remove do
+			table.remove(node.errors, table.find(node.errors, error))
+		end
+	end
 	nodes.strip_empty(error_node)
 end
 
 function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run: types.Phase)
+	local top_index = logging.set_category(messages.categories.failed_to_run_phase(self, phase_to_run))
+
 	local is_default_phase = phase_to_run == self.internal_values.default_phase
 	if globals.dev_mode and not phase.is_phase(phase_to_run) then
-		logging.set_category(errors.failed_to_run_phase(self, phase_to_run))
+		logging.report_error(messages.errors.invalid_phase(phase_to_run))
+		logging.end_after_inclusive(top_index)
 
-		logging.report_error(errors.invalid_phase(phase_to_run))
 		logging.flush()
-
-		logging.end_category()
 		return
 	end
 
@@ -249,14 +284,15 @@ function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run
 	if nodes.is_empty(error_node) then
 		return
 	end
-	logging.flush_node(error_node, errors.ignored_errors(globals.default_error_ignore_time))
+	logging.flush_node(error_node, messages.errors.ignored_errors(globals.default_error_ignore_time))
+	logging.end_after_inclusive(top_index)
 end
 
 function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_phase: types.Phase)
 	if globals.dev_mode and not phase.is_phase(new_phase) then
-		logging.set_category(errors.failed_to_set_default_phase(self, new_phase))
+		logging.set_category(messages.categories.failed_to_set_default_phase(self, new_phase))
 
-		logging.report_error(errors.invalid_phase(new_phase))
+		logging.report_error(messages.errors.invalid_phase(new_phase))
 		logging.flush()
 
 		logging.end_category()
@@ -280,6 +316,7 @@ local template = {
 	deinit = deinit,
 	run_system = run_system,
 	run_phase = run_phase,
+	get_default_phase = get_default_phase,
 }
 
 local meta = {

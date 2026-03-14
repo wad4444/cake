@@ -36,6 +36,7 @@ export type SchedulerInternal<T, K...> = {
 	read run_system: (SchedulerInternal<T, K...>, SystemTable<Callback>) -> (),
 	read run_phase: (SchedulerInternal<T, K...>, Phase) -> (),
 	read set_default_phase: (SchedulerInternal<T, K...>, Phase) -> (),
+	read get_default_phase: () -> Phase,
 }
 
 export type Phase = { read name: string, read symbol: { never } }
@@ -64,8 +65,8 @@ export type SystemContext = {
 	delta_time: number,
 	read cleanup: (Cleanuppable) -> () -> (),
 }
-export type SystemReturns = nil | () -> ...any
-export type SystemFunction<T...> = (T...) -> SystemReturns
+export type SystemReturns = nil | (...any) -> ...any
+export type SystemFunction<T...> = (T...) -> () | (T...) -> SystemReturns
 
 export type SystemTable<T> = {
 	read system: T,

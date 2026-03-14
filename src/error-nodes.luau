@@ -58,12 +58,28 @@ local function is_empty(node: types.ErrorNode)
 	return #node.children == 0 and #node.errors == 0
 end
 
-local function traverse(node: types.ErrorNode, fn: (node: types.ErrorNode, depth: number) -> (), depth: number?)
-	depth = depth or 0
+local function iterate(node: types.ErrorNode): () -> (types.ErrorNode, number)
+	local stack = { node, 0 }
 
-	fn(node, depth)
-	for _, child in node.children do
-		traverse(child, fn, depth + 1)
+	return function(): (types.ErrorNode, number)
+		local len = #stack
+		if len == 0 then
+			return nil :: any, nil :: any
+		end
+
+		local depth = stack[len] :: number
+		local current = stack[len - 1] :: types.ErrorNode
+		stack[len] = nil
+		stack[len - 1] = nil
+
+		local children = current.children
+		for i = #children, 1, -1 do
+			local new_len = #stack
+			stack[new_len + 1] = children[i]
+			stack[new_len + 2] = depth + 1
+		end
+
+		return current, depth
 	end
 end
 
@@ -73,13 +89,14 @@ local function strip_empty(node: types.ErrorNode)
 	end
 
 	local children_to_strip = {}
-	for i, child in node.children do
+	for _, child in node.children do
 		local has_errors = false
-		traverse(child, function(node)
-			if #node.errors > 0 then
+		for descendant in iterate(child) do
+			if #descendant.errors > 0 then
 				has_errors = true
+				break
 			end
-		end)
+		end
 
 		if not has_errors then
 			table.insert(children_to_strip, child)
@@ -112,11 +129,16 @@ local function collect(fn: () -> ())
 	return node
 end
 
+local function has_errors_current()
+	return not is_empty(node_stack.stack[node_stack.index])
+end
+
 return {
 	collect = collect,
 	append_node_stack = append_node_stack,
-	traverse = traverse,
+	iterate = iterate,
 	is_empty = is_empty,
 	strip_empty = strip_empty,
+	has_errors_current = has_errors_current,
 	node_stack = node_stack,
 }

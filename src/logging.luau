@@ -1,8 +1,7 @@
 local types = require("./types")
 
-local error_list = require("./errors")
+local messages = require("./messages")
 local nodes = require("./error-nodes")
-local globals = require("./globals")
 
 local error_block_header = `[CAKE ERROR BLOCK]`
 local error_block_footer = `[END OF BLOCK]`
@@ -12,7 +11,7 @@ local category_stack: { string } = {}
 
 local node_stack = nodes.node_stack
 local append_node_stack = nodes.append_node_stack
-local traverse = nodes.traverse
+local iterate = nodes.iterate
 local collect = nodes.collect
 
 local function report_error(error: string)
@@ -20,11 +19,17 @@ local function report_error(error: string)
 	table.insert(last_node.errors, error)
 end
 
+local function report_with_traceback(error: string, up: number?)
+	up = up or 1
+	local traceback = debug.traceback("", up + 1)
+	report_error(messages.wrappers.traceback(error, traceback))
+end
+
 local function ast_to_string(node: types.ErrorNode, trivia_text: string?): string
 	local error_str_buf = ""
 	local longest_sym_count = 10
 
-	traverse(node, function(node, depth)
+	for node, depth in iterate(node) do
 		local tab_offset = string.rep("\t", depth - 1)
 		local content_tab_offset = string.rep("\t", depth + if node.category then 0 else -1)
 
@@ -48,9 +53,10 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 		end
 
 		error_str_buf ..= current_buf
-	end)
+	end
 
-	local base_count = math.round(longest_sym_count * 0.7) - 8 -- 8 is basically "/*  " symbols * 2 , 0.65 is to account for slashes not being as fat on avg
+	-- 8 is basically "/*  " symbols * 2 , 0.7 is to account for slashes not being as fat on avg
+	local base_count = math.round(longest_sym_count * 0.7) - 8
 	local fsc_diff = math.round(math.abs(#error_block_header - #error_block_footer) / 2)
 	local tsc_diff = math.round(math.abs(#error_block_header - #error_block_trivia) / 2)
 
@@ -89,62 +95,25 @@ local function flush(trivia_text: string?)
 	end
 
 	flush_node(node_stack.stack[1], trivia_text)
-	table.clear(category_stack)
-end
-
-local function format_err_std(err: unknown, source: string, line: number, name: string?)
-	if name ~= "" then
-		return `{err}.\nFunction {name} defined at: {source}:{line}`
-	end
-
-	return `{err}.\nAnonymous function defined at: {source}:{line}`
-end
-
-local function run_error_handling_no_yield<T..., V...>(fn: (T...) -> V..., ...: T...): (boolean, V...)
-	if not globals.dev_mode then
-		return xpcall(fn, function(error)
-			local source, line, name = debug.info(1, "sln")
-			report_error(format_err_std(error_list.default_error(error), source, line, name))
-		end, ...)
-	end
-
-	local thread = coroutine.create(fn)
-	local result = { coroutine.resume(thread, ...) } :: { unknown }
-
-	local success = table.remove(result, 1)
-	if not success then
-		local error = table.remove(result, 1)
-		local source, line, name = debug.info(thread, 1, "sln")
-		report_error(format_err_std(error_list.default_error(error), source, line, name))
-		return false, nil :: any
-	end
-
-	if coroutine.status(thread) == "suspended" then
-		local source, line, name = debug.info(thread, 1, "sln")
-		report_error(format_err_std(error_list.no_yielding_allowed, source, line, name))
-		return false, nil :: any
-	end
-
-	return true, table.unpack(result) :: any
-end
-
-local function try_run<T..., V...>(fn: (T...) -> V..., ...: T...)
-	return run_error_handling_no_yield(fn, ...)
-end
-
-local function try_run_pack_args<T...>(fn: (T...) -> ...any, ...: T...): (boolean, { unknown })
-	local result = { run_error_handling_no_yield(fn, ...) }
-
-	local success = table.remove(result, 1) :: boolean
-	return success, result :: { unknown }
 end
 
 local function set_category(category: string)
 	table.insert(category_stack, category)
+	return #category_stack
 end
 
 local function end_category()
 	table.remove(category_stack)
+end
+
+local function end_after_inclusive(index: number)
+	if #category_stack < index then
+		return
+	end
+
+	while category_stack[index] do
+		table.remove(category_stack, index) -- array gets shifted atp
+	end
 end
 
 return {
@@ -153,8 +122,8 @@ return {
 	report_error = report_error,
 	flush = flush,
 	flush_node = flush_node,
-	try_run = try_run,
-	try_run_pack_args = try_run_pack_args,
-	collect = collect,
 	category_stack = category_stack,
+	end_after_inclusive = end_after_inclusive,
+	collect = collect,
+	report_with_traceback = report_with_traceback,
 }
