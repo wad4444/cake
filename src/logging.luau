@@ -30,6 +30,10 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 	local longest_sym_count = 10
 
 	for node, depth in iterate(node) do
+		if not nodes.has_errors(node) then
+			continue
+		end
+
 		local tab_offset = string.rep("\t", depth - 1)
 		local content_tab_offset = string.rep("\t", depth + if node.category then 0 else -1)
 
@@ -78,7 +82,7 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 end
 
 local function flush_node(node: types.ErrorNode, trivia_text: string?)
-	if #node.children == 0 and #node.errors == 0 then
+	if not nodes.has_errors(node) then
 		return
 	end
 

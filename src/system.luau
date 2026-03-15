@@ -3,7 +3,7 @@ local create_symbol = require("./symbol")
 
 local symbol = create_symbol("System")
 
-function create_system<T...>(
+local function create_system<T...>(
 	system: types.SystemFunction<T...>,
 	name: string?,
 	phase: types.Phase?
@@ -28,7 +28,7 @@ function create_system<T...>(
 	return table.freeze(system_table)
 end
 
-function is_system(system: unknown): boolean
+local function is_system(system: unknown): boolean
 	return type(system) == "table" and (system :: any).symbol == symbol
 end
 

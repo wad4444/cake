@@ -83,33 +83,6 @@ local function iterate(node: types.ErrorNode): () -> (types.ErrorNode, number)
 	end
 end
 
-local function strip_empty(node: types.ErrorNode)
-	if is_empty(node) then
-		return node
-	end
-
-	local children_to_strip = {}
-	for _, child in node.children do
-		local has_errors = false
-		for descendant in iterate(child) do
-			if #descendant.errors > 0 then
-				has_errors = true
-				break
-			end
-		end
-
-		if not has_errors then
-			table.insert(children_to_strip, child)
-		end
-	end
-
-	for _, child in children_to_strip do
-		table.remove(node.children, table.find(node.children, child))
-	end
-
-	return node
-end
-
 local function collect(fn: () -> ())
 	node_stack.index += 1
 
@@ -129,8 +102,18 @@ local function collect(fn: () -> ())
 	return node
 end
 
-local function has_errors_current()
-	return not is_empty(node_stack.stack[node_stack.index])
+local function has_errors(node: types.ErrorNode)
+	if #node.errors == 0 and #node.children == 0 then
+		return false
+	end
+
+	for node in iterate(node) do
+		if #node.errors > 0 then
+			return true
+		end
+	end
+
+	return false
 end
 
 return {
@@ -138,7 +121,6 @@ return {
 	append_node_stack = append_node_stack,
 	iterate = iterate,
 	is_empty = is_empty,
-	strip_empty = strip_empty,
-	has_errors_current = has_errors_current,
+	has_errors = has_errors,
 	node_stack = node_stack,
 }

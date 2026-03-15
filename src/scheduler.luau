@@ -175,12 +175,16 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 		return
 	end
 
-	self.internal_values.init_arguments = nil
 	local error_node = logging.collect(function()
 		for system in self.internal_system_state do
 			self:remove_system(system)
 		end
 	end)
+
+	self.internal_values.init_arguments = nil
+	self.internal_values.default_phase = phase_std.on_init
+	table.clear(self.internal_error_cache)
+	table.clear(self.internal_system_state)
 
 	logging.end_after_inclusive(top_index)
 	logging.flush_node(error_node)
@@ -204,7 +208,30 @@ local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, sy
 	logging.flush()
 end
 
-function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
+local function transform_system_error_node<T, K...>(self: types.SchedulerInternal<T, K...>, error_node: types.ErrorNode)
+	for node in nodes.iterate(error_node) do
+		if #node.errors == 0 then
+			continue
+		end
+
+		local errors_to_remove = {}
+		for _, error in node.errors do
+			local last_seen = self.internal_error_cache[error]
+			if last_seen and os.clock() - last_seen < globals.default_error_ignore_time then
+				table.insert(errors_to_remove, error)
+				continue
+			end
+
+			self.internal_error_cache[error] = os.clock()
+		end
+
+		for _, error in errors_to_remove do
+			table.remove(node.errors, table.find(node.errors, error))
+		end
+	end
+end
+
+local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
 	local top_index = logging.set_category(messages.categories.failed_to_run_system(self, system))
 
 	local system_state = self.internal_system_state[system]
@@ -233,35 +260,11 @@ function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: typ
 	logging.end_after_inclusive(top_index)
 end
 
-function get_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>): types.Phase
+local function get_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>): types.Phase
 	return self.internal_values.default_phase
 end
 
-function transform_system_error_node<T, K...>(self: types.SchedulerInternal<T, K...>, error_node: types.ErrorNode)
-	for node in nodes.iterate(error_node) do
-		if #node.errors == 0 then
-			continue
-		end
-
-		local errors_to_remove = {}
-		for _, error in node.errors do
-			local last_seen = self.internal_error_cache[error]
-			if last_seen and os.clock() - last_seen < globals.default_error_ignore_time then
-				table.insert(errors_to_remove, error)
-				continue
-			end
-
-			self.internal_error_cache[error] = os.clock()
-		end
-
-		for _, error in errors_to_remove do
-			table.remove(node.errors, table.find(node.errors, error))
-		end
-	end
-	nodes.strip_empty(error_node)
-end
-
-function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run: types.Phase)
+local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run: types.Phase)
 	local top_index = logging.set_category(messages.categories.failed_to_run_phase(self, phase_to_run))
 
 	local is_default_phase = phase_to_run == self.internal_values.default_phase
@@ -284,11 +287,11 @@ function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_to_run
 	if nodes.is_empty(error_node) then
 		return
 	end
-	logging.flush_node(error_node, messages.errors.ignored_errors(globals.default_error_ignore_time))
+	logging.flush_node(error_node, messages.errors.ignore_errors(globals.default_error_ignore_time))
 	logging.end_after_inclusive(top_index)
 end
 
-function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_phase: types.Phase)
+local function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_phase: types.Phase)
 	if globals.dev_mode and not phase.is_phase(new_phase) then
 		logging.set_category(messages.categories.failed_to_set_default_phase(self, new_phase))
 

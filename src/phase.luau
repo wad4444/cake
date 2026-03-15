@@ -3,7 +3,7 @@ local create_symbol = require("./symbol")
 
 local symbol = create_symbol("System")
 
-function create_phase(name: string): types.Phase
+local function create_phase(name: string): types.Phase
 	local phase_table = {
 		name = name,
 		symbol = symbol,
@@ -17,7 +17,7 @@ function create_phase(name: string): types.Phase
 	return table.freeze(phase_table)
 end
 
-function is_phase(phase: unknown): boolean
+local function is_phase(phase: unknown): boolean
 	return type(phase) == "table" and (phase :: any).symbol == symbol
 end
 

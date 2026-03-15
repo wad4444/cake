@@ -45,9 +45,9 @@ local messages = {
 		already_initialized = `Tried to initialize scheduler twice`,
 		not_initialized = `Scheduler isn't initialized`,
 		ignore_error = function(seconds: number)
-			return `Following error will be ignored for the next {seconds} seconds...`
+			return `Following error will be ignored for the next {seconds} second{if seconds ~= 1 then "s" else ""}....`
 		end,
-		ignored_errors = function(seconds: number)
+		ignore_errors = function(seconds: number)
 			return `Following errors will be ignored for the next {seconds} second{if seconds ~= 1 then "s" else ""}...`
 		end,
 		default_error = function(err: unknown)
