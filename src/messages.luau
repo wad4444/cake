@@ -30,10 +30,10 @@ local messages = {
 	},
 	errors = {
 		invalid_phase = function(phase: unknown)
-			return `{phase} is not a valid phase object. Traceback:{debug.traceback("", 3)}`
+			return `{phase} is not a valid phase object`
 		end,
 		invalid_system = function(system: unknown)
-			return `{system} is not a valid system object. Traceback:{debug.traceback("", 3)}`
+			return `{system} is not a valid system object`
 		end,
 		invalid_cleanup_object = function(got: string)
 			return `Expected Instance, thread, RBXScriptConnection, or function, got {got}`
