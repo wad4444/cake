@@ -105,7 +105,7 @@ local function end_category()
 end
 
 local function propagate(node: types.ErrorNode)
-	if node == node_stack.stack[node_stack.index] then
+	if node == node_stack.stack[node_stack.index] or nodes.is_empty(node) then
 		return
 	end
 
