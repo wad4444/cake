@@ -26,31 +26,31 @@ local function combine_into_tuple(array: { any }, value: any)
 		return value
 	end
 	if not b then
-		return value, a
+		return a, value
 	end
 	if not c then
-		return value, a, b
+		return a, b, value
 	end
 	if not d then
-		return value, a, b, c
+		return a, b, c, value
 	end
 	if not e then
-		return value, a, b, c, d
+		return a, b, c, d, value
 	end
 	if not f then
-		return value, a, b, c, d, e
+		return a, b, c, d, e, value
 	end
 	if not g then
-		return value, a, b, c, d, e, f
+		return a, b, c, d, e, f, value
 	end
 	if not h then
-		return value, a, b, c, d, e, f, g
+		return a, b, c, d, e, f, g, value
 	end
 	if not i then
-		return value, a, b, c, d, e, f, g, h
+		return a, b, c, d, e, f, g, h, value
 	end
 	if not j then
-		return value, a, b, c, d, e, f, g, h, i
+		return a, b, c, d, e, f, g, h, i, value
 	end
 
 	error(errors.errors.combine_failed(array)) -- hack: will get caught by xpcall error handler
