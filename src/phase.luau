@@ -21,7 +21,7 @@ local function is_phase(phase: unknown): boolean
 	return type(phase) == "table" and (phase :: any).symbol == symbol
 end
 
-return {
+return table.freeze({
 	create_phase = create_phase,
 	is_phase = is_phase,
-}
+})

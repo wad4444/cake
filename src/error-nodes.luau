@@ -116,11 +116,11 @@ local function has_errors(node: types.ErrorNode)
 	return false
 end
 
-return {
+return table.freeze({
 	collect = collect,
 	append_node_stack = append_node_stack,
 	iterate = iterate,
 	is_empty = is_empty,
 	has_errors = has_errors,
 	node_stack = node_stack,
-}
+})

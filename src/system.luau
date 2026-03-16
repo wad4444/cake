@@ -32,7 +32,7 @@ local function is_system(system: unknown): boolean
 	return type(system) == "table" and (system :: any).symbol == symbol
 end
 
-return {
+return table.freeze({
 	create_system = create_system,
 	is_system = is_system,
-}
+})

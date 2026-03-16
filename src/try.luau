@@ -41,7 +41,7 @@ local function try_run_pack_args<T...>(fn: (T...) -> ...any, ...: T...): (boolea
 	return success, result :: { unknown }
 end
 
-return {
+return table.freeze({
 	try_run = try_run,
 	try_run_pack_args = try_run_pack_args,
-}
+})

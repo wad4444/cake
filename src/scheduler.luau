@@ -107,6 +107,15 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	self.internal_system_state[system] = state
 	logging.end_after_inclusive(top_index)
 
+	local is_default_phase = system.phase == nil
+	local is_default_on_start = self.internal_values.default_phase == phase_std.on_start
+	if
+		self.internal_values.is_started
+		and (system.phase == phase_std.on_start or (is_default_phase and is_default_on_start))
+	then
+		self:run_system(system)
+	end
+
 	return function()
 		self:remove_system(system)
 	end
@@ -290,6 +299,13 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 		return
 	end
 
+	if phase_to_run == phase_std.never then
+		logging.report_error(messages.errors.tried_ran_never)
+		logging.end_after_inclusive(top_index)
+		logging.flush()
+		return
+	end
+
 	local error_node = logging.collect(function()
 		for system in self.internal_system_state do
 			if (is_default_phase and system.phase == nil) or system.phase == phase_to_run then
@@ -322,6 +338,7 @@ end
 local template = {
 	internal_values = {
 		default_phase = phase_std.on_start,
+		init_arguments = nil,
 	},
 	internal_system_state = {},
 	internal_error_cache = {},
@@ -344,21 +361,26 @@ local meta = {
 }
 
 local function create<T...>()
-	local scheduler = util.deep_clone(template)
+	local scheduler = table.clone(template)
+	scheduler.internal_system_state = {}
+	scheduler.internal_error_cache = {}
+	scheduler.internal_values = table.clone(template.internal_values)
 	setmetatable(scheduler, meta)
 
 	return scheduler :: types.Scheduler<T...>
 end
 
 local function create_init<T...>(...: T...)
-	local scheduler = util.deep_clone(template)
-	scheduler.internal_values.init_arguments = { ... }
+	local scheduler = table.clone(template)
+	scheduler.internal_system_state = {}
+	scheduler.internal_error_cache = {}
+	scheduler.internal_values = table.clone(template.internal_values)
 	setmetatable(scheduler, meta)
 
-	return scheduler
+	return scheduler :: types.Scheduler<T...>
 end
 
-return {
+return table.freeze({
 	create = create,
 	create_init = create_init,
-}
+})

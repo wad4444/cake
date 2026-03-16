@@ -120,7 +120,7 @@ local function end_after_inclusive(index: number)
 	end
 end
 
-return {
+return table.freeze({
 	set_category = set_category,
 	end_category = end_category,
 	report_error = report_error,
@@ -130,4 +130,4 @@ return {
 	end_after_inclusive = end_after_inclusive,
 	collect = collect,
 	report_with_traceback = report_with_traceback,
-}
+})

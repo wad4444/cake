@@ -52,6 +52,7 @@ local messages = {
 		ignore_errors = function(seconds: number)
 			return `Following errors will be ignored for the next {seconds} second{if seconds ~= 1 then "s" else ""}...`
 		end,
+		tried_ran_never = `Cannot run Phase(Never), it's purpose is to never be ran.`,
 		only_in_dev_mode = `This error will only be shown in development mode, that is on in studio by default.\nYou can change this behavior by setting 'dev_mode' in scheduler globals.`,
 		default_error = function(err: unknown)
 			return `An error has occured. Error:\n{err}`
@@ -77,4 +78,8 @@ local messages = {
 	},
 }
 
-return messages
+table.freeze(messages.categories)
+table.freeze(messages.errors)
+table.freeze(messages.wrappers)
+
+return table.freeze(messages)
