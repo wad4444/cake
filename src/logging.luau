@@ -68,9 +68,9 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 	local fsc = base_count - #error_block_footer - fsc_diff -- footer slash count
 	local tsc = base_count - #error_block_trivia - tsc_diff -- trivia slash count
 
-	local header = `\n/* {string.rep("-", hsc)} {error_block_header} {string.rep("-", hsc)} */\n`
-	local footer = `/* {string.rep("-", fsc)} {error_block_footer} {string.rep("-", fsc)} */\n`
-	local trivia = `/* {string.rep("-", tsc)} {error_block_trivia} {string.rep("-", tsc)} */\n`
+	local header = `\n/* {string.rep("-", hsc)} {error_block_header} {string.rep("-", hsc)} *\\\n`
+	local footer = `/* {string.rep("-", fsc)} {error_block_footer} {string.rep("-", fsc)} *\\\n`
+	local trivia = `/* {string.rep("-", tsc)} {error_block_trivia} {string.rep("-", tsc)} *\\\n`
 
 	error_str_buf = header .. error_str_buf
 	if trivia_text then
