@@ -41,7 +41,7 @@ local messages = {
 		system_not_active = function(system: unknown)
 			return `{system} isn't active in the scheduler`
 		end,
-		no_yielding_allowed = `No yielding allowed in the current environment`,
+		no_yielding_allowed = `Yielding is disallowed in the current environment`,
 		already_initialized = `Tried to initialize scheduler twice`,
 		not_initialized = `Scheduler isn't initialized`,
 		not_started = `Scheduler isn't started`,
