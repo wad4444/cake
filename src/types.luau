@@ -57,7 +57,7 @@ export type function ToInternal(type: type)
 		head = sys_fn_head,
 		tail = parameters.tail,
 	}, {
-		head = { SystemReturns },
+		head = { types.any },
 	})
 
 	return SchedulerInternal(sys_fn_type, table.unpack(head))
@@ -69,8 +69,7 @@ export type SystemContext = {
 	delta_time: number,
 	read cleanup: (Cleanuppable) -> () -> (),
 }
-export type SystemReturns = nil | (...any) -> ...any
-export type SystemFunction<T...> = (T...) -> () | (T...) -> SystemReturns
+export type SystemFunction<T...> = (T...) -> any
 
 export type SystemTable<T> = {
 	read system: T,

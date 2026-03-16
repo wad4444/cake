@@ -76,7 +76,8 @@ local function start<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	end)
 
 	logging.end_after_inclusive(top_index)
-	logging.flush_node(error_node)
+	logging.propagate(error_node)
+	logging.flush()
 end
 
 local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<T>): () -> ()
@@ -197,7 +198,8 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	table.clear(self.internal_system_state)
 
 	logging.end_after_inclusive(top_index)
-	logging.flush_node(error_node)
+	logging.propagate(error_node)
+	logging.flush()
 end
 
 local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
@@ -267,7 +269,8 @@ local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	if not success then
 		logging.end_after_inclusive(top_index)
 		transform_system_error_node(self, error_node)
-		logging.flush_node(error_node, messages.errors.ignore_error(globals.default_error_ignore_time))
+		logging.propagate(error_node)
+		logging.flush(messages.errors.ignore_error(globals.default_error_ignore_time))
 
 		return
 	end
@@ -317,7 +320,8 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 	if nodes.is_empty(error_node) then
 		return
 	end
-	logging.flush_node(error_node, messages.errors.ignore_errors(globals.default_error_ignore_time))
+	logging.propagate(error_node)
+	logging.flush(messages.errors.ignore_errors(globals.default_error_ignore_time))
 	logging.end_after_inclusive(top_index)
 end
 

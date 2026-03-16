@@ -5,15 +5,22 @@ local node_stack = {
 	index = 1,
 }
 
+local function make_node(): types.ErrorNode
+	return {
+		errors = {},
+		category = nil,
+		children = {},
+	}
+end
+
 for i = 1, 10 do
-	table.insert(
-		node_stack.stack,
-		{
-			errors = {},
-			category = nil,
-			children = {},
-		} :: types.ErrorNode
-	)
+	table.insert(node_stack.stack, make_node())
+end
+
+local function clear_node(node: types.ErrorNode)
+	table.clear(node.errors)
+	table.clear(node.children)
+	node.category = nil
 end
 
 local function append_node_stack(node: types.ErrorNode, category_stack: { string })
@@ -54,6 +61,30 @@ local function append_node_stack(node: types.ErrorNode, category_stack: { string
 	return current_node
 end
 
+local function merge_nodes(base: types.ErrorNode, patch: types.ErrorNode)
+	if base == patch then
+		return
+	end
+
+	for _, error in patch.errors do
+		table.insert(base.errors, error)
+	end
+
+	local category_to_node = {}
+	for _, child in base.children do
+		category_to_node[child.category] = child
+	end
+
+	for _, child in patch.children do
+		local existing_node = category_to_node[child.category]
+		if existing_node then
+			merge_nodes(existing_node, child)
+		else
+			table.insert(base.children, child)
+		end
+	end
+end
+
 local function is_empty(node: types.ErrorNode)
 	return #node.children == 0 and #node.errors == 0
 end
@@ -88,12 +119,10 @@ local function collect(fn: () -> ())
 
 	local node = node_stack.stack[node_stack.index]
 	if not node then
-		node = {
-			errors = {},
-			category = nil,
-			children = {},
-		} :: types.ErrorNode
+		node = make_node()
 		table.insert(node_stack.stack, node)
+	else
+		clear_node(node)
 	end
 
 	fn()
@@ -122,5 +151,7 @@ return table.freeze({
 	iterate = iterate,
 	is_empty = is_empty,
 	has_errors = has_errors,
+	merge_nodes = merge_nodes,
+	clear_node = clear_node,
 	node_stack = node_stack,
 })

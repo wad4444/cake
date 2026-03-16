@@ -5,8 +5,8 @@ local logging = require("./logging")
 local function run_error_handling_no_yield<T..., V...>(fn: (T...) -> V..., ...: T...): (boolean, V...)
 	if not globals.dev_mode then
 		return xpcall(fn, function(error)
-			local source, line, name = debug.info(1, "sln")
-			logging.report_error(messages.wrappers.sln(messages.errors.default_error(error), source, line, name))
+			local source, name = debug.info(1, "sn")
+			logging.report_error(messages.wrappers.sln(messages.errors.default_error(error), source, name))
 		end, ...)
 	end
 
@@ -16,14 +16,14 @@ local function run_error_handling_no_yield<T..., V...>(fn: (T...) -> V..., ...: 
 	local success = table.remove(result, 1)
 	if not success then
 		local error = table.remove(result, 1)
-		local source, line, name = debug.info(thread, 1, "sln")
-		logging.report_error(messages.wrappers.sln(messages.errors.default_error(error), source, line, name))
+		local source, name = debug.info(thread, 1, "sn")
+		logging.report_error(messages.wrappers.sln(messages.errors.default_error(error), source, name))
 		return false, nil :: any
 	end
 
 	if coroutine.status(thread) == "suspended" then
-		local source, line, name = debug.info(thread, 1, "sln")
-		logging.report_error(messages.wrappers.sln(messages.errors.no_yielding_allowed, source, line, name))
+		local source, name = debug.info(thread, 1, "sn")
+		logging.report_error(messages.wrappers.sln(messages.errors.no_yielding_allowed, source, name))
 		return false, nil :: any
 	end
 

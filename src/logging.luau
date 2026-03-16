@@ -81,24 +81,18 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 	return error_str_buf
 end
 
-local function flush_node(node: types.ErrorNode, trivia_text: string?)
-	if not nodes.has_errors(node) then
-		return
-	end
-
-	warn(ast_to_string(node, trivia_text))
-
-	table.clear(node.children)
-	table.clear(node.errors)
-	node.category = nil
-end
-
 local function flush(trivia_text: string?)
 	if node_stack.index ~= 1 then
 		return
 	end
 
-	flush_node(node_stack.stack[1], trivia_text)
+	local node = node_stack.stack[1]
+	if not nodes.has_errors(node) then
+		return
+	end
+
+	warn(ast_to_string(node, trivia_text))
+	nodes.clear_node(node)
 end
 
 local function set_category(category: string)
@@ -108,6 +102,14 @@ end
 
 local function end_category()
 	table.remove(category_stack)
+end
+
+local function propagate(node: types.ErrorNode)
+	if node == node_stack.stack[node_stack.index] then
+		return
+	end
+
+	nodes.merge_nodes(node_stack.stack[node_stack.index], node)
 end
 
 local function end_after_inclusive(index: number)
@@ -125,9 +127,9 @@ return table.freeze({
 	end_category = end_category,
 	report_error = report_error,
 	flush = flush,
-	flush_node = flush_node,
 	category_stack = category_stack,
 	end_after_inclusive = end_after_inclusive,
 	collect = collect,
 	report_with_traceback = report_with_traceback,
+	propagate = propagate,
 })

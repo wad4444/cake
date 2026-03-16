@@ -62,11 +62,11 @@ local messages = {
 		end,
 	},
 	wrappers = {
-		sln = function(err: unknown, source: string, line: number, name: string?)
-			if name ~= "" and line ~= nil and source ~= nil then
-				return `{err}.\nFunction {name} defined at: {source}:{line}`
-			elseif line ~= nil and source ~= nil then
-				return `{err}.\nAnonymous function defined at: {source}:{line}`
+		sln = function(err: unknown, source: string, name: string?)
+			if name ~= "" and source ~= nil then
+				return `{err}.\nFunction {name} defined at: {source}`
+			elseif source ~= nil then
+				return `{err}.\nAnonymous function defined at: {source}`
 			end
 
 			return `{err}.`
