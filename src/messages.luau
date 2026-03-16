@@ -72,7 +72,7 @@ local messages = {
 			return `{err}.`
 		end,
 		traceback = function(err: unknown, traceback: string)
-			traceback = string.sub(traceback, 2, -2)
+			traceback = string.sub(traceback, 2, -2) -- for some reason traceback includes a newline at the start and the end
 			return `{err}. Traceback:\n{traceback}`
 		end,
 	},
