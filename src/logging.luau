@@ -9,13 +9,9 @@ local error_block_trivia = `[BLOCK TRIVIA]`
 
 local category_stack: { string } = {}
 
-local node_stack = nodes.node_stack
-local append_node_stack = nodes.append_node_stack
-local iterate = nodes.iterate
-local collect = nodes.collect
-
 local function report_error(error: string)
-	local last_node = append_node_stack(node_stack.stack[node_stack.index], category_stack)
+	local node_stack = nodes.node_stack
+	local last_node = nodes.append_node_stack(node_stack.stack[node_stack.index], category_stack)
 	table.insert(last_node.errors, error)
 end
 
@@ -29,7 +25,7 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 	local error_str_buf = ""
 	local longest_sym_count = 10
 
-	for node, depth in iterate(node) do
+	for node, depth in nodes.iterate(node) do
 		if not nodes.has_errors(node) then
 			continue
 		end
@@ -82,6 +78,7 @@ local function ast_to_string(node: types.ErrorNode, trivia_text: string?): strin
 end
 
 local function flush(trivia_text: string?)
+	local node_stack = nodes.node_stack
 	if node_stack.index ~= 1 then
 		return
 	end
@@ -105,6 +102,7 @@ local function end_category()
 end
 
 local function propagate(node: types.ErrorNode)
+	local node_stack = nodes.node_stack
 	if node == node_stack.stack[node_stack.index] or nodes.is_empty(node) then
 		return
 	end
@@ -129,7 +127,7 @@ return table.freeze({
 	flush = flush,
 	category_stack = category_stack,
 	end_after_inclusive = end_after_inclusive,
-	collect = collect,
+	collect = nodes.collect,
 	report_with_traceback = report_with_traceback,
 	propagate = propagate,
 })
