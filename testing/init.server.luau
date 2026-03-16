@@ -14,8 +14,3 @@ scheduler:add_system(sys)
 
 scheduler:run_system(sys)
 scheduler:run_system(sys)
-
-task.wait(11)
-
-scheduler:run_system(sys)
-scheduler:run_system(sys)

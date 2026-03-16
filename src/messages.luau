@@ -15,11 +15,11 @@ local messages = {
 		failed_to_set_default_phase = function(scheduler: unknown, phase: unknown)
 			return `Failed to set default phase {phase} in {scheduler}`
 		end,
+		failed_to_start = function(scheduler: unknown)
+			return `Failed to start {scheduler}`
+		end,
 		failed_to_transform = function(system: unknown)
 			return `Failed to run transformation for {system}`
-		end,
-		failed_to_cache = function(system: unknown)
-			return `Failed to cache {system}`
 		end,
 		failed_to_init = function(scheduler: unknown)
 			return `Failed to initialize {scheduler}`
@@ -44,12 +44,15 @@ local messages = {
 		no_yielding_allowed = `No yielding allowed in the current environment`,
 		already_initialized = `Tried to initialize scheduler twice`,
 		not_initialized = `Scheduler isn't initialized`,
+		not_started = `Scheduler isn't started`,
+		already_started = `Scheduler is already started`,
 		ignore_error = function(seconds: number)
 			return `Following error will be ignored for the next {seconds} second{if seconds ~= 1 then "s" else ""}....`
 		end,
 		ignore_errors = function(seconds: number)
 			return `Following errors will be ignored for the next {seconds} second{if seconds ~= 1 then "s" else ""}...`
 		end,
+		only_in_dev_mode = `This error will only be shown in development mode, that is on in studio by default.\nYou can change this behavior by setting 'dev_mode' in scheduler globals.`,
 		default_error = function(err: unknown)
 			return `An error has occured. Error:\n{err}`
 		end,
@@ -68,6 +71,7 @@ local messages = {
 			return `{err}.`
 		end,
 		traceback = function(err: unknown, traceback: string)
+			traceback = string.sub(traceback, 2, -2)
 			return `{err}. Traceback:\n{traceback}`
 		end,
 	},

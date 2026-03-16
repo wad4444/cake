@@ -10,7 +10,8 @@ export type ErrorNode = {
 export type InternalSystemState = {
 	read context: SystemContext,
 	read to_cleanup: { Cleanuppable },
-	read cached_runner: () -> ...any,
+	read initial_runner: () -> ...any,
+	processed_runner: (() -> ...any)?,
 	last_run: number,
 }
 
@@ -20,12 +21,15 @@ export type SchedulerInternal<T, K...> = {
 	read internal_values: {
 		default_phase: Phase,
 		init_arguments: { unknown }?,
+		is_started: boolean,
 	},
 
 	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
 	read internal_error_cache: { [string]: number },
 
 	read init: (SchedulerInternal<T, K...>, K...) -> (),
+	read start: (SchedulerInternal<T, K...>) -> (),
+	read deinit: (SchedulerInternal<T, K...>) -> (),
 	read add_foreign_system: <V...>(
 		SchedulerInternal<T, K...>,
 		SystemTable<SystemFunction<V...>>,

@@ -1,9 +1,9 @@
 local phase = require("./phase").create_phase
 
-local on_init = phase("OnInit")
-local on_deinit = phase("OnDeinit")
+local on_start = phase("OnStart")
+local on_stop = phase("OnStop")
 
 return table.freeze({
-	on_init = on_init,
-	on_deinit = on_deinit,
+	on_start = on_start,
+	on_stop = on_stop,
 })

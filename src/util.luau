@@ -76,10 +76,21 @@ local function cleanup(to_cleanup: { types.Cleanuppable })
 	table.clear(to_cleanup)
 end
 
+local function deep_clone<T>(old_table: T): T
+	local new_table = table.clone(old_table) :: { [any]: any }
+	for key, value in new_table do
+		if typeof(value) == "table" then
+			new_table[key] = deep_clone(value)
+		end
+	end
+	return new_table :: T
+end
+
 return {
 	cleanup = cleanup,
 	noop = noop,
 	cleanup_single = cleanup_single,
 	build_cleanup_function = build_cleanup_function,
 	combine_into_tuple = combine_into_tuple,
+	deep_clone = deep_clone,
 }
