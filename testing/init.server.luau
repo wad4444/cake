@@ -17,7 +17,6 @@ local sys2 = cake.system(sys_fn, "test2", phase)
 scheduler:start()
 scheduler:set_default_phase(phase)
 
-scheduler:add_system(sys)
-scheduler:add_system(sys2)
+scheduler:add_systems({ sys, sys2 })
 
 scheduler:run_phase(phase)

@@ -22,6 +22,7 @@ export type SchedulerInternal<T, K...> = {
 		default_phase: Phase,
 		init_arguments: { unknown }?,
 		is_started: boolean,
+		name: string,
 	},
 
 	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
@@ -36,11 +37,13 @@ export type SchedulerInternal<T, K...> = {
 		Transformation<K..., V...>
 	) -> () -> (),
 	read add_system: (SchedulerInternal<T, K...>, SystemTable<T>) -> () -> (),
+	read add_systems: (SchedulerInternal<T, K...>, { SystemTable<T> }) -> (),
 	read remove_system: (SchedulerInternal<T, K...>, SystemTable<Callback>) -> (),
 	read run_system: (SchedulerInternal<T, K...>, SystemTable<Callback>) -> (),
 	read run_phase: (SchedulerInternal<T, K...>, Phase) -> (),
 	read set_default_phase: (SchedulerInternal<T, K...>, Phase) -> (),
-	read get_default_phase: () -> Phase,
+	read get_default_phase: (SchedulerInternal<T, K...>) -> Phase,
+	read set_name: (SchedulerInternal<T, K...>, string) -> (),
 }
 
 export type Phase = { read name: string, read symbol: { never } }

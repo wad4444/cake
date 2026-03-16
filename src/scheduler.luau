@@ -122,6 +122,25 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	end
 end
 
+local function add_systems<T, K...>(self: types.SchedulerInternal<T, K...>, systems: { types.SystemTable<T> })
+	local top_index = logging.set_category(messages.categories.failed_to_add_systems)
+	if not validate_initialized(self) then
+		logging.end_after_inclusive(top_index)
+		return
+	end
+
+	for _, system in systems do
+		if not validate_system(self, system) then
+			continue
+		end
+
+		self:add_system(system)
+	end
+
+	logging.end_after_inclusive(top_index)
+	logging.flush()
+end
+
 local function add_foreign_system<T, K..., V...>(
 	self: types.SchedulerInternal<T, K...>,
 	system: types.SystemTable<types.SystemFunction<V...>>,
@@ -317,12 +336,17 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 		end
 	end)
 
+	logging.end_after_inclusive(top_index)
+
 	if nodes.is_empty(error_node) then
 		return
 	end
 	logging.propagate(error_node)
 	logging.flush(messages.errors.ignore_errors(globals.default_error_ignore_time))
-	logging.end_after_inclusive(top_index)
+end
+
+local function set_name<T, K...>(self: types.SchedulerInternal<T, K...>, new_name: string)
+	self.internal_values.name = new_name
 end
 
 local function set_default_phase<T, K...>(self: types.SchedulerInternal<T, K...>, new_phase: types.Phase)
@@ -343,13 +367,17 @@ local template = {
 	internal_values = {
 		default_phase = phase_std.on_start,
 		init_arguments = nil,
+		name = "",
+		is_started = false,
 	},
 	internal_system_state = {},
 	internal_error_cache = {},
 	add_system = add_system,
+	add_systems = add_systems,
 	remove_system = remove_system,
 	add_foreign_system = add_foreign_system,
 	set_default_phase = set_default_phase,
+	set_name = set_name,
 	init = init,
 	deinit = deinit,
 	start = start,
@@ -359,16 +387,19 @@ local template = {
 }
 
 local meta = {
-	__tostring = function(self)
-		return `Scheduler({self.internal_values.default_phase})`
+	__tostring = function(self: types.Scheduler<...any>)
+		return `Scheduler({self.internal_values.name})`
 	end,
 }
+
+local new_id = util.ids()
 
 local function create<T...>()
 	local scheduler = table.clone(template)
 	scheduler.internal_system_state = {}
 	scheduler.internal_error_cache = {}
 	scheduler.internal_values = table.clone(template.internal_values)
+	scheduler.internal_values.name = `#{new_id()}`
 	setmetatable(scheduler, meta)
 
 	return scheduler :: types.Scheduler<T...>
@@ -379,6 +410,7 @@ local function create_init<T...>(...: T...)
 	scheduler.internal_system_state = {}
 	scheduler.internal_error_cache = {}
 	scheduler.internal_values = table.clone(template.internal_values)
+	scheduler.internal_values.name = `#{new_id()}`
 	setmetatable(scheduler, meta)
 
 	return scheduler :: types.Scheduler<T...>

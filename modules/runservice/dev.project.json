@@ -1,0 +1,15 @@
+{
+	"name": "dev",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"cake": {
+				"$path": "../../src"
+			},
+            "cake-runservice": {
+                "$path": "src"
+            }
+		}
+	}
+}

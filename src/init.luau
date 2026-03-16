@@ -11,7 +11,7 @@ export type Phase = types.Phase
 export type SystemFunction<T...> = types.SystemFunction<T...>
 export type Scheduler<T...> = types.Scheduler<T...>
 
-return table.freeze({
+local cake = {
 	system = system.create_system,
 	scheduler = scheduler.create,
 	scheduler_init = scheduler.create_init,
@@ -19,4 +19,7 @@ return table.freeze({
 
 	phase_std = phase_std,
 	globals = globals,
-})
+}
+cake.default = cake
+
+return table.freeze(cake)

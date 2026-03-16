@@ -76,9 +76,21 @@ local function cleanup(to_cleanup: { types.Cleanuppable })
 	table.clear(to_cleanup)
 end
 
+local function ids(from: number?)
+	local id = from or 0
+
+	local function new_id()
+		id += 1
+		return id
+	end
+
+	return new_id
+end
+
 return table.freeze({
 	cleanup = cleanup,
 	noop = noop,
+	ids = ids,
 	cleanup_single = cleanup_single,
 	build_cleanup_function = build_cleanup_function,
 	combine_into_tuple = combine_into_tuple,

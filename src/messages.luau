@@ -3,6 +3,7 @@ local messages = {
 		failed_to_add_system = function(system: unknown)
 			return `Failed to add {system}`
 		end,
+		failed_to_add_systems = `Failed to add systems`,
 		failed_to_remove_system = function(scheduler: unknown, system: unknown)
 			return `Failed to remove {system} from {scheduler}`
 		end,

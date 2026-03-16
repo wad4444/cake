@@ -1,0 +1,32 @@
+{
+  "name": "@rbxts/cake",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/init.luau",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wad4444/cake.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/wad4444/cake/issues"
+  },
+  "homepage": "https://github.com/wad4444/cake#readme",
+  "types": "src/index.d.ts",
+  "files": [
+    "src",
+    "default.project.json",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@rbxts/compiler-types": "^3.0.0-types.0",
+    "@rbxts/types": "^1.0.911",
+    "typescript": "^5.5.3"
+  }
+}
