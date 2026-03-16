@@ -1,3 +1,6 @@
+-- NOTE: this file is currently for initial, rapid testing purposes and will be gone soon,
+-- once the project makes it to initial release, i plan to add unit tests
+
 local cake = require(game.ReplicatedStorage.cake)
 
 local function sys_fn(context: cake.SystemContext)
