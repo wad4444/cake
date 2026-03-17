@@ -1,5 +1,5 @@
 {
-  "name": "@rbxts/cake-runservice",
+  "name": "@rbxts/cake-replecs",
   "version": "1.0.0",
   "description": "",
   "main": "src/init.luau",
@@ -28,5 +28,8 @@
     "@rbxts/compiler-types": "^3.0.0-types.0",
     "@rbxts/types": "^1.0.911",
     "typescript": "^5.5.3"
+  },
+  "peerDependencies": {
+    "@rbxts/replecs": "^0.3.x"
   }
 }
