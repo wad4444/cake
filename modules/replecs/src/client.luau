@@ -2,11 +2,12 @@ local cake = require(script.Parent.Parent.cake)
 local cake_runservice = require(script.Parent.Parent["cake-runservice"])
 local types = require(script.Parent.types)
 
-local function system_fn_client(client: types.ReplecsClient, remotes: types.Remotes)
+local function system_fn_client(client: types.ReplecsClient, remotes: types.Remotes, ctx: cake.SystemContext)
 	if game:IsLoaded() then
 		remotes.request_full.fire()
 	else
-		game.Loaded:Once(remotes.request_full.fire)
+		local connection = game.Loaded:Once(remotes.request_full.fire)
+		ctx.cleanup(connection)
 	end
 
 	return function()
