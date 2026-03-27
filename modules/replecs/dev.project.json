@@ -7,6 +7,9 @@
 			"replecs": {
 				"$path": "node_modules/@rbxts/replecs/out/replecs"
 			},
+			"jecs-utils": {
+				"$path": "node_modules/@rbxts/jecs-utils/src"
+			},
 			"cake": {
 				"$path": "../../src"
 			},

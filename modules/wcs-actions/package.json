@@ -1,5 +1,5 @@
 {
-  "name": "@rbxts/cake-replecs",
+  "name": "@rbxts/cake-wcs-actions",
   "version": "1.0.0",
   "description": "",
   "main": "src/init.luau",
@@ -30,7 +30,6 @@
     "typescript": "^5.5.3"
   },
   "peerDependencies": {
-    "@rbxts/jecs-utils": "*",
-    "@rbxts/replecs": "^0.3.x"
+    "@rbxts/wcs-actions": "*"
   }
 }

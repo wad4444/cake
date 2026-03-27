@@ -1,0 +1,24 @@
+{
+	"name": "cake-wcs-actions-test",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Packages": {
+				"$path": "Packages",
+				"cake-wcs-actions": {
+					"$path": "src"
+				},
+				"cake-runservice": {
+					"$path": "../runservice/src"
+				},
+				"cake": {
+					"$path": "../../src"
+				},
+				"wcs-actions": {
+					"$path": "../../../wcs-actions/src"
+				}
+			}
+		}
+	}
+}

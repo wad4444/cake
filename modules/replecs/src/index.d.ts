@@ -3,24 +3,31 @@ import { Server, Client } from "@rbxts/replecs";
 
 declare namespace CakeReplecs {
 	interface ServerEventLike<T extends unknown[] = []> {
-		readonly fire: (...args: T) => void;
-		readonly collect: IterableFunction<LuaTuple<[number, Player, ...T]>>;
+		readonly OnServerEvent: RBXScriptSignal<(player: Player, ...args: T) => void>;
+		FireClient(this: ServerEventLike<T>, player: Player, ...args: T): void;
 	}
 
 	interface ClientEventLike<T extends unknown[] = []> {
-		readonly fire: (player: Player, ...args: T) => void;
-		readonly collect: IterableFunction<LuaTuple<[number, ...T]>>;
+		readonly OnClientEvent: RBXScriptSignal<(...args: T) => void>;
+		FireServer(this: ClientEventLike<T>, ...args: T): void;
 	}
 
-	interface Remotes {
+	interface ServerRemotes {
 		readonly request_full: ServerEventLike;
+		readonly send_full: ServerEventLike<[buffer, defined[][]?]>;
+		readonly send_unreliables: ServerEventLike<[buffer, defined[][]?]>;
+		readonly send_updates: ServerEventLike<[buffer, defined[][]?]>;
+	}
+
+	interface ClientRemotes {
+		readonly request_full: ClientEventLike;
 		readonly send_full: ClientEventLike<[buffer, defined[][]?]>;
 		readonly send_unreliables: ClientEventLike<[buffer, defined[][]?]>;
 		readonly send_updates: ClientEventLike<[buffer, defined[][]?]>;
 	}
 
-	export const initialize_server: SystemTable<[Server, Remotes]>;
-	export const initialize_client: SystemTable<[Client, Remotes]>;
+	export const initialize_server: SystemTable<[Server, ServerRemotes]>;
+	export const initialize_client: SystemTable<[Client, ClientRemotes]>;
 }
 
 export = CakeReplecs;

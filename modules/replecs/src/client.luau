@@ -1,25 +1,39 @@
-local cake = require(script.Parent.Parent.cake)
-local cake_runservice = require(script.Parent.Parent["cake-runservice"])
-local types = require(script.Parent.types)
+local cake = require("./dependencies/cake")
+local cake_runservice = require("./dependencies/cake-runservice")
+local types = require("./types")
 
-local function system_fn_client(client: types.ReplecsClient, remotes: types.Remotes, ctx: cake.SystemContext)
+local collect = require("./dependencies/jecs-utils").collect :: types.Collect
+
+local function system_fn_client(client: types.ReplecsClient, remotes: types.ClientRemotes, ctx: types.SystemContext)
+	local send_fulls, cleanup_send_fulls = collect(remotes.send_full.OnClientEvent)
+	local send_unreliables, cleanup_send_unreliables = collect(remotes.send_unreliables.OnClientEvent)
+	local send_updates, cleanup_send_updates = collect(remotes.send_updates.OnClientEvent)
+
 	if game:IsLoaded() then
-		remotes.request_full.fire()
+		remotes.request_full:FireServer()
 	else
-		local connection = game.Loaded:Once(remotes.request_full.fire)
+		local connection = game.Loaded:Once(function()
+			remotes.request_full:FireServer()
+		end)
 		ctx.cleanup(connection)
 	end
 
+	ctx.cleanup(function()
+		cleanup_send_fulls()
+		cleanup_send_unreliables()
+		cleanup_send_updates()
+	end)
+
 	return function()
-		for _, buffer, variants in remotes.send_full.collect do
+		for _, buffer, variants in send_fulls do
 			client:apply_full(buffer, variants)
 		end
 
-		for _, buffer, variants in remotes.send_unreliables.collect do
+		for _, buffer, variants in send_unreliables do
 			client:apply_unreliable(buffer, variants)
 		end
 
-		for _, buffer, variants in remotes.send_updates.collect do
+		for _, buffer, variants in send_updates do
 			client:apply_updates(buffer, variants)
 		end
 	end
