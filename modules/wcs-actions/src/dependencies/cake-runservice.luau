@@ -1,3 +1,9 @@
 --!nonstrict
 local package_module = script.Parent.Parent
-return require(package_module.Parent["cake-runservice"])
+local TS = _G[package_module]
+
+if TS then
+	return TS.import(script, TS.getModule(script, "@rbxts", "cake-runservice"))
+else
+	return require(package_module.Parent["cake-runservice"])
+end

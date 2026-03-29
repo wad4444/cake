@@ -1,3 +1,9 @@
 --!nonstrict
 local package_module = script.Parent.Parent
-return require(package_module.Parent["wcs-actions"])
+local TS = _G[package_module]
+
+if TS then
+	return TS.import(script, TS.getModule(script, "@rbxts", "wcs-actions"))
+else
+	return require(package_module.Parent["wcs-actions"])
+end

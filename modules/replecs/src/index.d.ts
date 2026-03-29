@@ -1,4 +1,4 @@
-import { SystemTable } from "@rbxts/cake";
+import { SystemTable, SystemContext } from "@rbxts/cake";
 import { Server, Client } from "@rbxts/replecs";
 
 declare namespace CakeReplecs {
@@ -26,8 +26,8 @@ declare namespace CakeReplecs {
 		readonly send_updates: ClientEventLike<[buffer, defined[][]?]>;
 	}
 
-	export const initialize_server: SystemTable<[Server, ServerRemotes]>;
-	export const initialize_client: SystemTable<[Client, ClientRemotes]>;
+	export const initialize_server: SystemTable<[Server, ServerRemotes, SystemContext]>;
+	export const initialize_client: SystemTable<[Client, ClientRemotes, SystemContext]>;
 }
 
 export = CakeReplecs;
