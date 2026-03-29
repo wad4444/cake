@@ -5,8 +5,8 @@ import type {
 } from "@rbxts/wcs-actions";
 
 declare namespace CakeWCSActions {
-	export const initialize_server: SystemTable<[ServerSystemProps]>;
-	export const initialize_client: SystemTable<[ClientSystemProps]>;
+	export const initialize_server: SystemTable<[ServerSystemProps<any>]>;
+	export const initialize_client: SystemTable<[ClientSystemProps<any>]>;
 }
 
 export = CakeWCSActions;

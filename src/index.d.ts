@@ -1,4 +1,6 @@
-type Transformation<T extends unknown[], K extends unknown[]> = (...args: T) => LuaTuple<K>;
+type Transformation<T extends unknown[], K extends unknown[]> = (...args: T) =>
+    K extends [infer A, ...infer Rest]
+        ? Rest extends [] ? A : (...args: Rest) => A : never;
 type Cleanuppable = Callback | Instance | thread | RBXScriptConnection;
 
 export type SystemFunction<T extends unknown[]> = (...args: T) => any;
