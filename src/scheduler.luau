@@ -129,15 +129,18 @@ local function add_systems<T, K...>(self: types.SchedulerInternal<T, K...>, syst
 		return
 	end
 
-	for _, system in systems do
-		if not validate_system(self, system) then
-			continue
-		end
+	local error_node = logging.collect(function()
+		for _, system in systems do
+			if not validate_system(self, system) then
+				continue
+			end
 
-		self:add_system(system)
-	end
+			self:add_system(system)
+		end
+	end)
 
 	logging.end_after_inclusive(top_index)
+	logging.propagate(error_node)
 	logging.flush()
 end
 
