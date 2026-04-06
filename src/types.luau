@@ -1,5 +1,9 @@
+local hooks = require("./hooks")
+
 export type Callback = (...any) -> ...any
+export type UnknownCallback = (...unknown) -> ...unknown
 export type Cleanuppable = Callback | Instance | thread | RBXScriptConnection
+export type Symbol = { __do_not_use_this_or_you_will_be_fired: never }
 
 export type ErrorNode = {
 	read errors: { string },
@@ -17,6 +21,8 @@ export type InternalSystemState = {
 
 export type Transformation<T..., V...> = (T...) -> V...
 
+export type Hook = index<typeof(hooks), keyof<typeof(hooks)>>
+
 export type SchedulerInternal<T, K...> = {
 	read internal_values: {
 		default_phase: Phase,
@@ -27,6 +33,7 @@ export type SchedulerInternal<T, K...> = {
 
 	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
 	read internal_error_cache: { [string]: number },
+	read internal_hooks: { [Hook]: { (...any) -> () } },
 
 	read init: (SchedulerInternal<T, K...>, K...) -> (),
 	read start: (SchedulerInternal<T, K...>) -> (),
@@ -43,10 +50,29 @@ export type SchedulerInternal<T, K...> = {
 	read run_phase: (SchedulerInternal<T, K...>, Phase) -> (),
 	read set_default_phase: (SchedulerInternal<T, K...>, Phase) -> (),
 	read get_default_phase: (SchedulerInternal<T, K...>) -> Phase,
+	read get_name: (SchedulerInternal<T, K...>) -> string,
+	read get_systems: (SchedulerInternal<T, K...>) -> { SystemTable<UnknownCallback> },
 	read set_name: (SchedulerInternal<T, K...>, string) -> (),
+	read hook: ((
+		SchedulerInternal<T, K...>,
+		typeof(hooks.system_ran),
+		(SystemTable<UnknownCallback>, SystemContext) -> ()
+	) -> () -> ()) & ((SchedulerInternal<T, K...>, typeof(hooks.phase_ran), (Phase) -> ()) -> () -> ()) & ((
+		SchedulerInternal<T, K...>,
+		typeof(hooks.system_added),
+		(SystemTable<UnknownCallback>, SystemContext) -> ()
+	) -> () -> ()) & ((
+		SchedulerInternal<T, K...>,
+		typeof(hooks.system_removed),
+		(SystemTable<UnknownCallback>, SystemContext) -> ()
+	) -> () -> ()) & ((
+		SchedulerInternal<T, K...>,
+		typeof(hooks.default_phase_changed),
+		(Phase) -> ()
+	) -> () -> ()),
 }
 
-export type Phase = { read name: string, read symbol: { never } }
+export type Phase = { read name: string, read symbol: Symbol }
 
 export type function ToInternal(type: type)
 	assert(type:is("function"))
@@ -78,7 +104,7 @@ export type SystemTable<T> = {
 	read system: T,
 	read name: string?,
 	read phase: Phase?,
-	read symbol: { never },
+	read symbol: Symbol,
 }
 
 return nil

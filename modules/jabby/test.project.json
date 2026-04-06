@@ -1,0 +1,25 @@
+{
+	"name": "cake-jabby-test",
+	"tree": {
+		"$className": "DataModel",
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"Packages": {
+				"$path": "Packages",
+				"cake-jabby": {
+					"$path": "src"
+				},
+				"cake-runservice": {
+					"$path": "../runservice/src"
+				},
+				"cake": {
+					"$path": "../../src"
+				}
+			}
+		},
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$path": "testing"
+		}
+	}
+}

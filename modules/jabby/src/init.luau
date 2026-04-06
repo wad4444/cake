@@ -1,0 +1,67 @@
+--!nonstrict
+local cake = require("@self/dependencies/cake")
+local jabby = require("@self/dependencies/jabby")
+local types = require("@self/types")
+
+local noop = function() end
+
+local function system_function(scheduler: types.Scheduler<...unknown>, context: types.SystemContext)
+	local display_name = scheduler:get_name()
+
+	local jabby_scheduler = jabby.scheduler.create()
+	local system_to_id = {}
+
+	local function register_system(system)
+		local default_phase = scheduler:get_default_phase()
+		local id = jabby_scheduler:register_system({
+			name = system.name,
+			phase = if system.phase then system.phase.name else default_phase.name,
+		})
+		system_to_id[system] = id
+
+		jabby_scheduler:run(id, noop)
+		jabby_scheduler:run(id, noop)
+	end
+
+	for _, system in scheduler:get_systems() do
+		register_system(system)
+	end
+
+	context.cleanup(scheduler:hook(cake.hooks.system_added, register_system))
+
+	context.cleanup(scheduler:hook(cake.hooks.default_phase_changed, function()
+		for system, id in system_to_id do
+			jabby_scheduler:remove_system(id)
+		end
+		table.clear(system_to_id)
+
+		for _, system in scheduler:get_systems() do
+			register_system(system)
+		end
+	end))
+
+	context.cleanup(scheduler:hook(cake.hooks.system_removed, function(system)
+		local id = system_to_id[system]
+		if id then
+			jabby_scheduler:remove_system(id)
+			system_to_id[system] = nil
+		end
+	end))
+
+	context.cleanup(scheduler:hook(cake.hooks.system_ran, function(system)
+		local id = system_to_id[system]
+		if id then
+			jabby_scheduler:run(id, noop)
+		end
+	end))
+
+	jabby.register({
+		applet = jabby.applets.scheduler,
+		name = display_name,
+		configuration = {
+			scheduler = jabby_scheduler,
+		},
+	})
+end
+
+return cake.system(system_function, "Initialize Jabby", cake.phase_std.on_start)

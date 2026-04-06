@@ -31,13 +31,9 @@ local function system_function(scheduler: cake.Scheduler<...unknown>, context: c
 	end))
 end
 
-local system = cake.system(
-    system_function,
-    "Initialize RunService",
-    cake.phase_std.on_start
-)
+local system = cake.system(system_function, "Initialize RunService", cake.phase_std.on_start)
 
 return table.freeze({
-    initialize_runservice = system,
-    phases = phases,
+	initialize_runservice = system,
+	phases = phases,
 })
