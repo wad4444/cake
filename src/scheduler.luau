@@ -71,19 +71,19 @@ local function fire_hook<T, K...>(self: types.SchedulerInternal<T, K...>, hook: 
 		for _, callback in hooks_list do
 			local e, f, g, h = a, b, c, d
 			if not a then
-				e = r1
-				f = r2
-				g = r3
-				h = r4
+				e = r1 or e
+				f = r2 or f
+				g = r3 or g
+				h = r4 or h
 			elseif not b then
-				f = r1
-				g = r2
-				h = r3
+				f = r1 or f
+				g = r2 or g
+				h = r3 or h
 			elseif not c then
-				g = r1
-				h = r2
+				g = r1 or g
+				h = r2 or h
 			elseif not d then
-				h = r1
+				h = r1 or h
 			end
 
 			r1, r2, r3, r4 = callback(e, f, g, h)
