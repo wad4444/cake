@@ -9,6 +9,15 @@ local function system_function(scheduler: types.Scheduler<...unknown>, context: 
 	local jabby_scheduler = jabby.scheduler.create()
 	local system_to_id = {}
 
+	local function is_single_pass_system(system)
+		local default_phase = scheduler:get_default_phase()
+		local is_start_phase = system.phase == cake.phase_std.on_start or system.phase == cake.phase_std.pre_start
+		local is_default_phase = system.phase == nil
+		local is_default_on_start = default_phase == cake.phase_std.on_start or default_phase == cake.phase_std.pre_start
+
+		return is_start_phase or (is_default_phase and is_default_on_start)
+	end
+	
 	local function register_system(system)
 		local default_phase = scheduler:get_default_phase()
 		local id = jabby_scheduler:register_system({
@@ -16,6 +25,12 @@ local function system_function(scheduler: types.Scheduler<...unknown>, context: 
 			phase = if system.phase then system.phase.name else default_phase.name,
 		})
 		system_to_id[system] = id
+
+		if is_single_pass_system(system) then
+			jabby_scheduler:set_system_data(id, {
+				paused = true,
+			})
+		end
 	end
 
 	for _, system in scheduler:get_systems() do
@@ -45,12 +60,24 @@ local function system_function(scheduler: types.Scheduler<...unknown>, context: 
 
 	context.cleanup(scheduler:hook(cake.hooks.system_call, function(system, _, call)
 		local id = system_to_id[system]
-		if id then
+		if not id then
+			return
+		end
+		if is_single_pass_system(system) then
 			return function()
+				jabby_scheduler:set_system_data(id, {
+					paused = false,
+				})
 				jabby_scheduler:run(id, call)
+				jabby_scheduler:set_system_data(id, {
+					paused = true,
+				})
 			end
 		end
-		return
+
+		return function()
+			jabby_scheduler:run(id, call)
+		end
 	end))
 
 	jabby.register({

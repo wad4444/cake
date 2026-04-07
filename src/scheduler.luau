@@ -113,6 +113,7 @@ local function start<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 
 	self.internal_values.is_started = true
 	local error_node = logging.collect(function()
+		self:run_phase(phase_std.pre_start)
 		self:run_phase(phase_std.on_start)
 	end)
 

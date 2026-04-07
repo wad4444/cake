@@ -6,7 +6,7 @@ local on_stop = phase("OnStop")
 local never = phase("Never")
 
 return table.freeze({
-	before_start = pre_start,
+	pre_start = pre_start,
 	on_start = on_start,
 	on_stop = on_stop,
 	never = never,
