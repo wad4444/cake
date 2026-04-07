@@ -6,4 +6,5 @@ return table.freeze({
 	system_added = symbol<<"Hook (system_added)">>("Hook (system_added)"),
 	system_removed = symbol<<"Hook (system_removed)">>("Hook (system_removed)"),
 	default_phase_changed = symbol<<"Hook (default_phase_changed)">>("Hook (default_phase_changed)"),
+	system_call = symbol<<"Hook (system_call)">>("Hook (system_call)"),
 })

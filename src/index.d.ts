@@ -26,6 +26,7 @@ export interface Hooks {
     readonly system_added: unique symbol;
     readonly system_removed: unique symbol;
     readonly default_phase_changed: unique symbol;
+    readonly system_call: unique symbol;
 }
 
 interface HookFunction {
@@ -34,6 +35,11 @@ interface HookFunction {
     [Cake.hooks.system_added]: (system: SystemTable<Callback[]>, context: SystemContext) => void;
     [Cake.hooks.system_removed]: (system: SystemTable<Callback[]>, context: SystemContext) => void;
     [Cake.hooks.default_phase_changed]: (phase: Phase) => void;
+    [Cake.hooks.system_call]: (
+        system: SystemTable<Callback[]>,
+        context: SystemContext,
+        run: () => void
+    ) => (() => void) | undefined;
 }
 
 export interface Scheduler<T extends unknown[]> {

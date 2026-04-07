@@ -3,8 +3,6 @@ local cake = require("@self/dependencies/cake")
 local jabby = require("@self/dependencies/jabby")
 local types = require("@self/types")
 
-local noop = function() end
-
 local function system_function(scheduler: types.Scheduler<...unknown>, context: types.SystemContext)
 	local display_name = scheduler:get_name()
 
@@ -18,9 +16,6 @@ local function system_function(scheduler: types.Scheduler<...unknown>, context: 
 			phase = if system.phase then system.phase.name else default_phase.name,
 		})
 		system_to_id[system] = id
-
-		jabby_scheduler:run(id, noop)
-		jabby_scheduler:run(id, noop)
 	end
 
 	for _, system in scheduler:get_systems() do
@@ -48,11 +43,14 @@ local function system_function(scheduler: types.Scheduler<...unknown>, context: 
 		end
 	end))
 
-	context.cleanup(scheduler:hook(cake.hooks.system_ran, function(system)
+	context.cleanup(scheduler:hook(cake.hooks.system_call, function(system, _, call)
 		local id = system_to_id[system]
 		if id then
-			jabby_scheduler:run(id, noop)
+			return function()
+				jabby_scheduler:run(id, call)
+			end
 		end
+		return
 	end))
 
 	jabby.register({
@@ -64,4 +62,4 @@ local function system_function(scheduler: types.Scheduler<...unknown>, context: 
 	})
 end
 
-return cake.system(system_function, "Initialize Jabby", cake.phase_std.on_start)
+return cake.system(system_function, "Initialize Jabby", cake.phase_std.pre_start)

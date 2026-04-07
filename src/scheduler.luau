@@ -57,23 +57,44 @@ local function validate_system<T, K...>(self: types.SchedulerInternal<T, K...>, 
 	return true
 end
 
-local function fire_hook<T, K...>(self: types.SchedulerInternal<T, K...>, hook: types.Hook, ...: any)
+local function fire_hook<T, K...>(self: types.SchedulerInternal<T, K...>, hook: types.Hook, ...: any): ...any
 	local hooks_list = self.internal_hooks[hook]
 	if not hooks_list then
 		return
 	end
 
-	local a, b, c, d, e, f, g, h = ...
+	local a, b, c, d = ...
+	local r1, r2, r3, r4
+
 	local top_index = logging.set_category(messages.categories.failed_to_run_hook(hook))
 	local error_node = logging.collect(function()
 		for _, callback in hooks_list do
-			callback(a, b, c, d, e, f, g, h)
+			local e, f, g, h = a, b, c, d
+			if not a then
+				e = r1
+				f = r2
+				g = r3
+				h = r4
+			elseif not b then
+				f = r1
+				g = r2
+				h = r3
+			elseif not c then
+				g = r1
+				h = r2
+			elseif not d then
+				h = r1
+			end
+
+			r1, r2, r3, r4 = callback(e, f, g, h)
 		end
 	end)
 
 	logging.end_after_inclusive(top_index)
 	logging.propagate(error_node)
 	logging.flush()
+
+	return r1, r2, r3, r4
 end
 
 local function start<T, K...>(self: types.SchedulerInternal<T, K...>): ()
@@ -309,10 +330,21 @@ local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 
 	local runner = system_state.processed_runner or system_state.initial_runner
 	local success, result
-	local error_node = logging.collect(function()
-		success, result = try.try_run(runner)
-	end)
-	if not success then
+	local error_node
+
+	local function perform_system_call()
+		error_node = logging.collect(function()
+			success, result = try.try_run(runner)
+		end)
+	end
+
+	local perform: types.Callback =
+		fire_hook(self, hooks.system_call, system, system_state.context, perform_system_call)
+
+	perform = perform or perform_system_call
+	perform()
+
+	if not success and error_node then
 		logging.end_after_inclusive(top_index)
 		transform_system_error_node(self, error_node)
 		logging.propagate(error_node)
@@ -329,8 +361,8 @@ local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	fire_hook(self, hooks.system_ran, system, system_state.context)
 end
 
-local function get_systems<T, K...>(self: types.SchedulerInternal<T, K...>): { types.SystemTable<any> }
-	local systems = {}
+local function get_systems<T, K...>(self: types.SchedulerInternal<T, K...>): { types.SystemTable<types.UnknownCallback> }
+	local systems: { any } = {}
 	for system in self.internal_system_state do
 		table.insert(systems, system)
 	end

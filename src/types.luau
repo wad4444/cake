@@ -33,7 +33,7 @@ export type SchedulerInternal<T, K...> = {
 
 	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
 	read internal_error_cache: { [string]: number },
-	read internal_hooks: { [Hook]: { (...any) -> () } },
+	read internal_hooks: { [Hook]: { Callback } },
 
 	read init: (SchedulerInternal<T, K...>, K...) -> (),
 	read start: (SchedulerInternal<T, K...>) -> (),
@@ -69,6 +69,10 @@ export type SchedulerInternal<T, K...> = {
 		SchedulerInternal<T, K...>,
 		typeof(hooks.default_phase_changed),
 		(Phase) -> ()
+	) -> () -> ()) & ((
+		SchedulerInternal<T, K...>,
+		typeof(hooks.system_call),
+		(SystemTable<UnknownCallback>, SystemContext, () -> ()) -> () -> ()
 	) -> () -> ()),
 }
 
