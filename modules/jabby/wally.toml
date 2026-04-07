@@ -1,0 +1,11 @@
+[package]
+name = "wad4444/cake-jabby"
+version = "0.0.1"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+license = "MIT"
+exclude = ["**", "*.d.ts"]
+include = ["default.project.json", "src", "LICENSE"]
+
+[dependencies]
+jabby = "alicesaidhi/jabby@0.5.1"

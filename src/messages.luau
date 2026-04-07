@@ -28,6 +28,9 @@ local messages = {
 		failed_to_deinit = function(scheduler: unknown)
 			return `Failed to deinitialize {scheduler}`
 		end,
+		failed_to_run_hook = function(hook: unknown)
+			return `Failed to run hook {hook}`
+		end,
 	},
 	errors = {
 		invalid_phase = function(phase: unknown)
