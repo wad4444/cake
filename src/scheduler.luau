@@ -9,6 +9,9 @@ local globals = require("./globals")
 local system = require("./system")
 local try = require("./try")
 local hooks = require("./hooks")
+local create_symbol = require("./symbol")
+
+local default_phase_key = create_symbol("DefaultPhase")
 
 local function init<T, K...>(self: types.SchedulerInternal<T, K...>, ...: K...): ()
 	local top_index = logging.set_category(messages.categories.failed_to_init(self))
@@ -97,6 +100,28 @@ local function fire_hook<T, K...>(self: types.SchedulerInternal<T, K...>, hook: 
 	return r1, r2, r3, r4
 end
 
+local function cache_system<T, K...>(self: types.SchedulerInternal<T, K...>, system_table: types.AnySystemTable)
+	local key = system_table.phase or default_phase_key
+	local systems: { any } = self.internal_phase_cache[key]
+	if not systems then
+		systems = {}
+		self.internal_phase_cache[key] = systems
+	end
+	table.insert(systems, system_table)
+end
+
+local function uncache_system<T, K...>(self: types.SchedulerInternal<T, K...>, system_table: types.AnySystemTable)
+	local key = system_table.phase or default_phase_key
+	local systems: { any } = self.internal_phase_cache[key]
+	if not systems then
+		return
+	end
+	local index = table.find(systems, system_table)
+	if index then
+		table.remove(systems, index)
+	end
+end
+
 local function start<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	local top_index = logging.set_category(messages.categories.failed_to_start(self))
 
@@ -148,6 +173,7 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	}
 
 	self.internal_system_state[system] = state
+	cache_system(self, system)
 	logging.end_after_inclusive(top_index)
 	fire_hook(self, hooks.system_added, system, context)
 
@@ -231,6 +257,7 @@ local function add_foreign_system<T, K..., V...>(
 	}
 
 	self.internal_system_state[system] = state
+	cache_system(self, system)
 	logging.end_after_inclusive(top_index)
 	fire_hook(self, hooks.system_added, system, context)
 
@@ -262,6 +289,7 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	self.internal_values.is_started = false
 	table.clear(self.internal_error_cache)
 	table.clear(self.internal_system_state)
+	table.clear(self.internal_phase_cache)
 	table.clear(self.internal_hooks)
 
 	logging.end_after_inclusive(top_index)
@@ -269,7 +297,7 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	logging.flush()
 end
 
-local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
+local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.AnySystemTable)
 	local top_index = logging.set_category(messages.categories.failed_to_remove_system(self, system))
 
 	local system_state = self.internal_system_state[system]
@@ -281,6 +309,7 @@ local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, sy
 	end
 
 	util.cleanup(system_state.to_cleanup)
+	uncache_system(self, system)
 	self.internal_system_state[system] = nil
 
 	logging.end_after_inclusive(top_index)
@@ -311,7 +340,7 @@ local function transform_system_error_node<T, K...>(self: types.SchedulerInterna
 	end
 end
 
-local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.SystemTable<any>)
+local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, system: types.AnySystemTable)
 	local top_index = logging.set_category(messages.categories.failed_to_run_system(self, system))
 	if not validate_started(self) then
 		logging.end_after_inclusive(top_index)
@@ -362,7 +391,7 @@ local function run_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	fire_hook(self, hooks.system_ran, system, system_state.context)
 end
 
-local function get_systems<T, K...>(self: types.SchedulerInternal<T, K...>): { types.SystemTable<types.UnknownCallback> }
+local function get_systems<T, K...>(self: types.SchedulerInternal<T, K...>): { types.UnknownSystemTable }
 	local systems: { any } = {}
 	for system in self.internal_system_state do
 		table.insert(systems, system)
@@ -385,7 +414,6 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 		return
 	end
 
-	local is_default_phase = phase_to_run == self.internal_values.default_phase
 	if globals.dev_mode and not phase.is_phase(phase_to_run) then
 		logging.report_with_traceback(messages.errors.invalid_phase(phase_to_run), 2)
 		logging.end_after_inclusive(top_index)
@@ -401,9 +429,23 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 		return
 	end
 
+	local is_default_phase = phase_to_run == self.internal_values.default_phase
+
 	local error_node = logging.collect(function()
-		for system in self.internal_system_state do
-			if (is_default_phase and system.phase == nil) or system.phase == phase_to_run then
+		local systems = self.internal_phase_cache[phase_to_run]
+		if systems then
+			for _, system in systems do
+				self:run_system(system)
+			end
+		end
+
+		if not is_default_phase then
+			return
+		end
+
+		local default_systems = self.internal_phase_cache[default_phase_key]
+		if default_systems then
+			for _, system in default_systems do
 				self:run_system(system)
 			end
 		end
@@ -462,6 +504,7 @@ local template = {
 		is_started = false,
 	},
 	internal_system_state = {},
+	internal_phase_cache = {},
 	internal_error_cache = {},
 	internal_hooks = {},
 	add_system = add_system,
@@ -492,6 +535,7 @@ local new_id = util.ids()
 local function create<T...>()
 	local scheduler = table.clone(template)
 	scheduler.internal_system_state = {}
+	scheduler.internal_phase_cache = {}
 	scheduler.internal_error_cache = {}
 	scheduler.internal_hooks = {}
 	scheduler.internal_values = table.clone(template.internal_values)
@@ -504,6 +548,7 @@ end
 local function create_init<T...>(...: T...)
 	local scheduler = table.clone(template)
 	scheduler.internal_system_state = {}
+	scheduler.internal_phase_cache = {}
 	scheduler.internal_error_cache = {}
 	scheduler.internal_hooks = {}
 	scheduler.internal_values = table.clone(template.internal_values)

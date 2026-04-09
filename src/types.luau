@@ -23,6 +23,9 @@ export type Transformation<T..., V...> = (T...) -> V...
 
 export type Hook = index<typeof(hooks), keyof<typeof(hooks)>>
 
+export type AnySystemTable = SystemTable<Callback>
+export type UnknownSystemTable = SystemTable<UnknownCallback>
+
 export type SchedulerInternal<T, K...> = {
 	read internal_values: {
 		default_phase: Phase,
@@ -31,7 +34,8 @@ export type SchedulerInternal<T, K...> = {
 		name: string,
 	},
 
-	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
+	read internal_system_state: { [AnySystemTable]: InternalSystemState },
+	read internal_phase_cache: { [Phase | Symbol]: { AnySystemTable } },
 	read internal_error_cache: { [string]: number },
 	read internal_hooks: { [Hook]: { Callback } },
 
@@ -45,26 +49,26 @@ export type SchedulerInternal<T, K...> = {
 	) -> () -> (),
 	read add_system: (SchedulerInternal<T, K...>, SystemTable<T>) -> () -> (),
 	read add_systems: (SchedulerInternal<T, K...>, { SystemTable<T> }) -> (),
-	read remove_system: (SchedulerInternal<T, K...>, SystemTable<Callback>) -> (),
-	read run_system: (SchedulerInternal<T, K...>, SystemTable<Callback>) -> (),
+	read remove_system: (SchedulerInternal<T, K...>, AnySystemTable) -> (),
+	read run_system: (SchedulerInternal<T, K...>, AnySystemTable) -> (),
 	read run_phase: (SchedulerInternal<T, K...>, Phase) -> (),
 	read set_default_phase: (SchedulerInternal<T, K...>, Phase) -> (),
 	read get_default_phase: (SchedulerInternal<T, K...>) -> Phase,
 	read get_name: (SchedulerInternal<T, K...>) -> string,
-	read get_systems: (SchedulerInternal<T, K...>) -> { SystemTable<UnknownCallback> },
+	read get_systems: (SchedulerInternal<T, K...>) -> { UnknownSystemTable },
 	read set_name: (SchedulerInternal<T, K...>, string) -> (),
 	read hook: ((
 		SchedulerInternal<T, K...>,
 		typeof(hooks.system_ran),
-		(SystemTable<UnknownCallback>, SystemContext) -> ()
+		(UnknownSystemTable, SystemContext) -> ()
 	) -> () -> ()) & ((SchedulerInternal<T, K...>, typeof(hooks.phase_ran), (Phase) -> ()) -> () -> ()) & ((
 		SchedulerInternal<T, K...>,
 		typeof(hooks.system_added),
-		(SystemTable<UnknownCallback>, SystemContext) -> ()
+		(UnknownSystemTable, SystemContext) -> ()
 	) -> () -> ()) & ((
 		SchedulerInternal<T, K...>,
 		typeof(hooks.system_removed),
-		(SystemTable<UnknownCallback>, SystemContext) -> ()
+		(UnknownSystemTable, SystemContext) -> ()
 	) -> () -> ()) & ((
 		SchedulerInternal<T, K...>,
 		typeof(hooks.default_phase_changed),
@@ -72,7 +76,7 @@ export type SchedulerInternal<T, K...> = {
 	) -> () -> ()) & ((
 		SchedulerInternal<T, K...>,
 		typeof(hooks.system_call),
-		(SystemTable<UnknownCallback>, SystemContext, () -> ()) -> () -> ()
+		(UnknownSystemTable, SystemContext, () -> ()) -> () -> ()
 	) -> () -> ()),
 }
 
