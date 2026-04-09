@@ -32,6 +32,7 @@ export type SchedulerInternal<T, K...> = {
 	},
 
 	read internal_system_state: { [SystemTable<Callback>]: InternalSystemState },
+	read internal_phase_cache: { [Phase]: { SystemTable<Callback> } },
 	read internal_error_cache: { [string]: number },
 	read internal_hooks: { [Hook]: { Callback } },
 
@@ -108,6 +109,7 @@ export type SystemTable<T> = {
 	read system: T,
 	read name: string?,
 	read phase: Phase?,
+	read priority: number?,
 	read symbol: Symbol,
 }
 

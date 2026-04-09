@@ -6,7 +6,8 @@ local symbol = create_symbol("System")
 local function create_system<T...>(
 	system: types.SystemFunction<T...>,
 	name: string?,
-	phase: types.Phase?
+	phase: types.Phase?,
+	priority: number?
 ): types.SystemTable<types.SystemFunction<T...>>
 	name = name or `System ({tostring(system)})`
 
@@ -14,6 +15,7 @@ local function create_system<T...>(
 		system = system,
 		name = name,
 		phase = phase,
+		priority = priority or 0,
 		symbol = symbol,
 	}
 	setmetatable(system_table, {

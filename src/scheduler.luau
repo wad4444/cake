@@ -148,6 +148,20 @@ local function add_system<T, K...>(self: types.SchedulerInternal<T, K...>, syste
 	}
 
 	self.internal_system_state[system] = state
+
+	-- Update phase cache
+	local target_phase = system.phase or self.internal_values.default_phase
+	local phase_list = self.internal_phase_cache[target_phase]
+	if not phase_list then
+		phase_list = {}
+		self.internal_phase_cache[target_phase] = phase_list
+	end
+	table.insert(phase_list, system)
+	-- Sort by priority (higher priority runs first)
+	table.sort(phase_list, function(a, b)
+		return (a.priority or 0) > (b.priority or 0)
+	end)
+
 	logging.end_after_inclusive(top_index)
 	fire_hook(self, hooks.system_added, system, context)
 
@@ -262,6 +276,7 @@ local function deinit<T, K...>(self: types.SchedulerInternal<T, K...>): ()
 	self.internal_values.is_started = false
 	table.clear(self.internal_error_cache)
 	table.clear(self.internal_system_state)
+	table.clear(self.internal_phase_cache)
 	table.clear(self.internal_hooks)
 
 	logging.end_after_inclusive(top_index)
@@ -282,6 +297,16 @@ local function remove_system<T, K...>(self: types.SchedulerInternal<T, K...>, sy
 
 	util.cleanup(system_state.to_cleanup)
 	self.internal_system_state[system] = nil
+
+	-- Remove from phase cache
+	local target_phase = system.phase or self.internal_values.default_phase
+	local phase_list = self.internal_phase_cache[target_phase]
+	if phase_list then
+		local index = table.find(phase_list, system)
+		if index then
+			table.remove(phase_list, index)
+		end
+	end
 
 	logging.end_after_inclusive(top_index)
 	logging.flush()
@@ -385,7 +410,6 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 		return
 	end
 
-	local is_default_phase = phase_to_run == self.internal_values.default_phase
 	if globals.dev_mode and not phase.is_phase(phase_to_run) then
 		logging.report_with_traceback(messages.errors.invalid_phase(phase_to_run), 2)
 		logging.end_after_inclusive(top_index)
@@ -402,8 +426,9 @@ local function run_phase<T, K...>(self: types.SchedulerInternal<T, K...>, phase_
 	end
 
 	local error_node = logging.collect(function()
-		for system in self.internal_system_state do
-			if (is_default_phase and system.phase == nil) or system.phase == phase_to_run then
+		local phase_list = self.internal_phase_cache[phase_to_run]
+		if phase_list then
+			for _, system in phase_list do
 				self:run_system(system)
 			end
 		end
@@ -462,6 +487,7 @@ local template = {
 		is_started = false,
 	},
 	internal_system_state = {},
+	internal_phase_cache = {},
 	internal_error_cache = {},
 	internal_hooks = {},
 	add_system = add_system,
@@ -492,6 +518,7 @@ local new_id = util.ids()
 local function create<T...>()
 	local scheduler = table.clone(template)
 	scheduler.internal_system_state = {}
+	scheduler.internal_phase_cache = {}
 	scheduler.internal_error_cache = {}
 	scheduler.internal_hooks = {}
 	scheduler.internal_values = table.clone(template.internal_values)
@@ -504,6 +531,7 @@ end
 local function create_init<T...>(...: T...)
 	local scheduler = table.clone(template)
 	scheduler.internal_system_state = {}
+	scheduler.internal_phase_cache = {}
 	scheduler.internal_error_cache = {}
 	scheduler.internal_hooks = {}
 	scheduler.internal_values = table.clone(template.internal_values)
