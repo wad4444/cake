@@ -8,12 +8,16 @@ local function noop() end
 local function cleanup_single(object: types.Cleanuppable)
 	if typeof(object) == "Instance" then
 		object:Destroy()
+		return
 	elseif typeof(object) == "thread" then
 		task.cancel(object)
+		return
 	elseif typeof(object) == "RBXScriptConnection" then
 		object:Disconnect()
+		return
 	elseif typeof(object) == "function" then
 		try.try_run(object)
+		return
 	end
 
 	logging.report_error(errors.errors.invalid_cleanup_object(typeof(object)))
