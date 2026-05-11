@@ -1,12 +1,13 @@
 local cake = require("./dependencies/cake")
 local cake_runservice = require("./dependencies/cake-runservice")
+local remotes = require("./remotes")
 local types = require("./types")
 
 local jecs_utils = require("./dependencies/jecs-utils")
 local collect = jecs_utils.collect :: types.Collect
 local interval = jecs_utils.interval
 
-local function system_fn_server(server: types.ReplecsServer, remotes: types.ServerRemotes, ctx: types.SystemContext)
+local function system_fn_server(server: types.ReplecsServer, ctx: types.SystemContext)
 	local updates_interval = interval(1 / 20)
 	local unreliables_interval = interval(1 / 5)
 

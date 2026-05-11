@@ -1,10 +1,11 @@
 local cake = require("./dependencies/cake")
 local cake_runservice = require("./dependencies/cake-runservice")
+local remotes = require("./remotes")
 local types = require("./types")
 
 local collect = require("./dependencies/jecs-utils").collect :: types.Collect
 
-local function system_fn_client(client: types.ReplecsClient, remotes: types.ClientRemotes, ctx: types.SystemContext)
+local function system_fn_client(client: types.ReplecsClient, ctx: types.SystemContext)
 	local send_fulls, cleanup_send_fulls = collect(remotes.send_full.OnClientEvent)
 	local send_unreliables, cleanup_send_unreliables = collect(remotes.send_unreliables.OnClientEvent)
 	local send_updates, cleanup_send_updates = collect(remotes.send_updates.OnClientEvent)
